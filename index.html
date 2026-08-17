@@ -66,7 +66,8 @@
             display: none;
         }
 
-        canvas {
+        /* PERBAIKAN: CSS ini sekarang HANYA berlaku untuk canvas tracing, bukan canvas confetti */
+        #tracingCanvas {
             border: 4px dashed #00BBF9;
             border-radius: 20px;
             touch-action: none; 
@@ -162,6 +163,10 @@
 </head>
 <body>
 
+    <!-- PERBAIKAN AUDIO: Menggunakan format MP3 yang disukai iOS Safari -->
+    <audio id="audioCheer" src="https://www.myinstants.com/media/sounds/kids-cheering.mp3" preload="auto"></audio>
+    <audio id="audioFail" src="https://www.myinstants.com/media/sounds/erro.mp3" preload="auto"></audio>
+
     <button id="langBtn" class="lang-toggle">ID 🇮🇩</button>
 
     <!-- STEP 1: TRACING -->
@@ -255,24 +260,18 @@
 
 
         // --- SISTEM AUDIO (SORAKAN ANAK & EFEK GAGAL) ---
-        // Menggunakan library suara publik resmi dari Google Actions
-        const successAudio = new Audio('https://actions.google.com/sounds/v1/crowds/kids_cheering.ogg');
-        const failAudio = new Audio('https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg');
-        
+        const audioCheer = document.getElementById('audioCheer');
+        const audioFail = document.getElementById('audioFail');
         let mediaUnlocked = false;
 
+        // Buka blokir audio di sentuhan pertama
         function unlockMedia() {
             if (!mediaUnlocked) {
-                // Unlock Voice Synthesis
                 const unlockMsg = new SpeechSynthesisUtterance('');
                 window.speechSynthesis.speak(unlockMsg);
                 
-                // Unlock Audio Elements untuk iOS Safari (Play lalu Pause secara senyap)
-                successAudio.volume = 0;
-                failAudio.volume = 0;
-                successAudio.play().then(() => successAudio.pause()).catch(e => console.log(e));
-                failAudio.play().then(() => failAudio.pause()).catch(e => console.log(e));
-                
+                audioCheer.load();
+                audioFail.load();
                 mediaUnlocked = true;
             }
         }
@@ -281,23 +280,22 @@
         window.addEventListener('mousedown', unlockMedia, { passive: true, once: true });
 
         function playSuccessSFX() {
-            successAudio.volume = 1;
-            successAudio.currentTime = 0;
-            successAudio.play();
+            audioCheer.currentTime = 0;
+            audioCheer.play().catch(e => console.log("Audio play blocked:", e));
             
             // Efek Pinata Confetti
             confetti({
                 particleCount: 150,
                 spread: 80,
                 origin: { y: 0.6 },
-                colors: ['#00BBF9', '#00F5D4', '#F15BB5', '#FEE440']
+                colors: ['#00BBF9', '#00F5D4', '#F15BB5', '#FEE440'],
+                zIndex: 9999 // Pastikan confetti selalu di depan
             });
         }
 
         function playFailSFX() {
-            failAudio.volume = 1;
-            failAudio.currentTime = 0;
-            failAudio.play();
+            audioFail.currentTime = 0;
+            audioFail.play().catch(e => console.log("Audio play blocked:", e));
         }
 
         function playLetterSound() {
@@ -329,23 +327,24 @@
         const ctx = canvas.getContext('2d');
         
         let isDrawing = false;
+        let isTracingComplete = false;
         let strokes = []; 
         let currentStroke = []; 
 
-        // Terdapat 6 Titik: Titik Kiri, Tengah, dan Kanan diatur sejajar di koordinat Y: 235
         let checkpoints = [
-            { x: 175, y: 65, hit: false },   // 1. Puncak
-            { x: 115, y: 235, hit: false },  // 2. Tengah Kiri
-            { x: 175, y: 235, hit: false },  // 3. Tengah Tengah (Agar terpaksa membuat garis horizontal lurus)
-            { x: 235, y: 235, hit: false },  // 4. Tengah Kanan
-            { x: 65, y: 345, hit: false },   // 5. Bawah Kiri
-            { x: 285, y: 345, hit: false }   // 6. Bawah Kanan
+            { x: 175, y: 65, hit: false },   // Puncak
+            { x: 115, y: 235, hit: false },  // Tengah Kiri
+            { x: 175, y: 235, hit: false },  // Tengah Lurus
+            { x: 235, y: 235, hit: false },  // Tengah Kanan
+            { x: 65, y: 345, hit: false },   // Bawah Kiri
+            { x: 285, y: 345, hit: false }   // Bawah Kanan
         ];
 
         function resetCanvas() {
             checkpoints.forEach(pt => pt.hit = false);
             strokes = [];
             currentStroke = [];
+            isTracingComplete = false;
             redrawAll();
         }
 
@@ -399,6 +398,7 @@
         }
 
         function startDrawing(e) {
+            if (isTracingComplete) return;
             e.preventDefault(); 
             isDrawing = true;
             const pos = getCoordinates(e);
@@ -416,7 +416,7 @@
         }
 
         function draw(e) {
-            if (!isDrawing) return;
+            if (!isDrawing || isTracingComplete) return;
             e.preventDefault();
             const pos = getCoordinates(e);
             currentStroke.push(pos);
@@ -437,9 +437,13 @@
             if (hitOccurred) {
                 const allHit = checkpoints.every(pt => pt.hit === true);
                 if (allHit) {
+                    isTracingComplete = true; // Kunci kanvas agar tidak bisa dicoret lagi
                     stopDrawing(); 
-                    playSuccessSFX(); // Panggil Suara Sorakan & Pinata Confetti
-                    setTimeout(() => { goToStep(2); }, 2000); // Beri jeda 2 detik untuk menikmati efek
+                    
+                    playSuccessSFX(); 
+                    
+                    // Pindah ke step 2 setelah 2.5 detik agar anak bisa melihat confetti
+                    setTimeout(() => { goToStep(2); }, 2500); 
                 }
             }
         }
@@ -496,12 +500,12 @@
                 if (isCorrect) {
                     voiceFeedback.innerText = t.success;
                     voiceFeedback.style.color = "#00BBF9"; 
-                    playSuccessSFX();
+                    playSuccessSFX(); // Suara sorakan & Confetti lagi saat berhasil bicara!
                     setTimeout(() => { goToStep(3); }, 2000);
                 } else {
                     voiceFeedback.innerText = t.failText + `"${transcript}".` + t.failTryAgain;
                     voiceFeedback.style.color = "#F15BB5";
-                    playFailSFX(); // Putar Suara Gagal (Tetot)
+                    playFailSFX(); 
                 }
             };
             
