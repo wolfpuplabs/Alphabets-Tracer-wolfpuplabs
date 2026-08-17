@@ -35,17 +35,18 @@
         #ar-container {
             display: none;
             width: 400px;
+            max-width: 100%;
         }
 
-        /* Set canvas background. Pastikan nama file persis: image_3.png */
+        /* PERBAIKAN UKURAN & BACKGROUND CANVAS */
         canvas {
             border: 2px solid #ccc;
             border-radius: 10px;
             touch-action: none; 
             cursor: crosshair;
-            background-color: #fff;
-            background-image: url('image_3.png'); 
-            background-size: cover;
+            background-color: #f0f0f0; 
+            background-image: url('letter_a_trace.png'); /* Nama file gambar yang baru */
+            background-size: 100% 100%; 
             background-position: center;
             background-repeat: no-repeat;
         }
@@ -91,8 +92,8 @@
 
     <div id="card-container">
         <h2>Langkah 1: Hubungkan Titik</h2>
-        <p>Tarik garis (drag) melewati titik-titik pada huruf "A".</p>
-        <canvas id="tracingCanvas" width="600" height="350"></canvas>
+        <p>Tarik garis (drag) mengikuti garis putus-putus.</p>
+        <canvas id="tracingCanvas" width="350" height="400"></canvas>
     </div>
 
     <div id="ar-container">
@@ -134,17 +135,17 @@
 
         let isDrawing = false;
 
-        // Koordinat disesuaikan untuk membentuk pola A yang pas di kanvas
+        // KOORDINAT BARU YANG DISESUAIKAN DENGAN GAMBAR LETTER_A_TRACE.PNG
         let checkpoints = [
-            { x: 160, y: 70, hit: false },  // Puncak A
-            { x: 120, y: 160, hit: false }, // Tengah Kiri
-            { x: 80, y: 250, hit: false },  // Bawah Kiri
-            { x: 200, y: 160, hit: false }, // Tengah Kanan
-            { x: 240, y: 250, hit: false }  // Bawah Kanan
+            { x: 175, y: 50, hit: false },   // 1. Puncak Atas
+            { x: 110, y: 220, hit: false },  // 2. Garis Kiri Atas
+            { x: 60, y: 350, hit: false },   // 3. Kaki Kiri Bawah
+            { x: 240, y: 220, hit: false },  // 4. Garis Kanan Atas
+            { x: 290, y: 350, hit: false },  // 5. Kaki Kanan Bawah
+            { x: 175, y: 240, hit: false }   // 6. Palang Tengah (Garis Horizontal)
         ];
 
         function drawCheckpoints() {
-            // Bersihkan kanvas (tanpa menghapus background image)
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             checkpoints.forEach(pt => {
@@ -155,6 +156,7 @@
             });
         }
 
+        // Gambar titik-titik awal
         drawCheckpoints();
 
         function getCoordinates(e) {
@@ -176,7 +178,6 @@
             const pos = getCoordinates(e);
             ctx.beginPath();
             ctx.moveTo(pos.x, pos.y);
-            // HAPUS checkHit di sini agar TAP saja tidak membuat titik jadi hijau
         }
 
         function stopDrawing() {
@@ -189,123 +190,6 @@
             
             const pos = getCoordinates(e);
 
-            ctx.lineWidth = 15;
+            ctx.lineWidth = 18; // Ketebalan coretan disesuaikan
             ctx.lineCap = 'round';
-            ctx.strokeStyle = 'rgba(0, 123, 255, 0.6)'; // Garis biru transparan
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
-            
-            // Titik HANYA dicek saat jari BERGERAK (drag)
-            checkHit(pos.x, pos.y);
-        }
-
-        function checkHit(x, y) {
-            let hitOccurred = false;
-            checkpoints.forEach(pt => {
-                const dist = Math.hypot(pt.x - x, pt.y - y);
-                if (dist < 25 && !pt.hit) {
-                    pt.hit = true;
-                    hitOccurred = true;
-                }
-            });
-
-            if (hitOccurred) {
-                checkCompletion();
-            }
-        }
-
-        function playLetterSound() {
-            // Menggunakan "ah." agar Apple tidak membaca "A besar"
-            const msg = new SpeechSynthesisUtterance("ah.");
-            msg.lang = 'id-ID';
-            msg.rate = 0.9;
-            window.speechSynthesis.speak(msg);
-        }
-
-        function checkCompletion() {
-            const allHit = checkpoints.every(pt => pt.hit === true);
-            if (allHit) {
-                isDrawing = false; // Hentikan gambar
-                drawCheckpoints(); // Warnai titik terakhir jadi hijau
-                
-                setTimeout(() => {
-                    cardContainer.style.display = 'none';
-                    arContainer.style.display = 'flex';
-                    playLetterSound();
-                }, 600); 
-            }
-        }
-
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('touchstart', startDrawing);
-        canvas.addEventListener('touchend', stopDrawing);
-        canvas.addEventListener('touchmove', draw);
-
-
-        // --- LOGIKA SUARA ---
-        const speakBtn = document.getElementById('speakBtn');
-        const playSoundBtn = document.getElementById('playSoundBtn');
-        const voiceFeedback = document.getElementById('voiceFeedback');
-
-        playSoundBtn.addEventListener('click', playLetterSound);
-
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        
-        if (SpeechRecognition) {
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'id-ID';
-            recognition.interimResults = false;
-
-            const startRec = (e) => {
-                e.preventDefault();
-                recognition.start();
-                speakBtn.classList.add('recording');
-                speakBtn.innerText = "Mendengarkan...";
-                voiceFeedback.innerText = "";
-            };
-
-            const stopRec = (e) => {
-                e.preventDefault();
-                recognition.stop();
-                speakBtn.classList.remove('recording');
-                speakBtn.innerText = "🎤 Ucapkan \"A\"";
-            };
-
-            speakBtn.addEventListener('mousedown', startRec);
-            speakBtn.addEventListener('mouseup', stopRec);
-            speakBtn.addEventListener('touchstart', startRec);
-            speakBtn.addEventListener('touchend', stopRec);
-
-            recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript.toLowerCase().trim();
-                
-                // Memperluas deteksi suara karena iPad sering misheard kata pendek
-                const validWords = ['a', 'ah', 'ha', 'aa', 'eh'];
-                const isCorrect = validWords.some(word => transcript.includes(word));
-
-                if (isCorrect) {
-                    voiceFeedback.innerText = "Pintar! Itu huruf A.";
-                    voiceFeedback.style.color = "#28a745";
-                    
-                    const reply = new SpeechSynthesisUtterance("Pintar!");
-                    reply.lang = 'id-ID';
-                    window.speechSynthesis.speak(reply);
-                } else {
-                    voiceFeedback.innerText = `Kamu bilang: "${transcript}". Coba lagi bilang "A".`;
-                    voiceFeedback.style.color = "#FF3B30";
-                }
-            };
-            
-            recognition.onerror = (event) => {
-                voiceFeedback.innerText = "Suara tidak terdengar jelas, coba lagi.";
-                voiceFeedback.style.color = "#FF3B30";
-            };
-        } else {
-            speakBtn.style.display = 'none';
-            voiceFeedback.innerText = "Browser kamu tidak mendukung rekam suara.";
-        }
-    </script>
-</body>
-</html>
+            ctx.strokeStyle
