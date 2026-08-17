@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Tracing Dots to AR</title>
+    
+    <!-- Import Google Model Viewer untuk fitur 3D dan AR -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Tampilan Kartu Tracing */
+        #card-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            padding: 20px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        canvas {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            touch-action: none; /* Mencegah scrolling saat menggambar di HP */
+            cursor: crosshair;
+        }
+
+        /* Tampilan AR (Awalnya Disembunyikan) */
+        #ar-container {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: white;
+        }
+
+        model-viewer {
+            width: 100%;
+            max-width: 400px;
+            height: 400px;
+            background-color: #eee;
+            border-radius: 15px;
+        }
+
+        h2 { color: #333; margin-bottom: 10px; }
+        p { color: #666; margin-bottom: 20px; }
+
+        .btn {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 20px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+            transition: transform 0.2s;
+        }
+
+        .btn:active { transform: scale(0.95); }
+        .btn.recording { background-color: #FF3B30; box-shadow: 0 5px 15px rgba(255,59,48,0.3); }
+
+    </style>
+</head>
+<body>
+
+    <!-- STEP 1: TRACING THE DOTS -->
+    <div id="card-container">
+        <h2>Langkah 1: Hubungkan Titik</h2>
+        <p>Gambar huruf "A" dengan mengikuti titik-titik.</p>
+        <canvas id="tracingCanvas" width="300" height="300"></canvas>
+    </div>
+
+    <!-- STEP 2 & 3: 3D AR & VOICE INTERACTION -->
+    <div id="ar-container">
+        <h2>Langkah 2: Mode AR & Suara</h2>
+        <p>Lihat secara 3D dan tekan tombol untuk bersuara.</p>
+        
+        <!-- Ganti 'letter_A.glb' dengan file model 3D milikmu -->
+        <model-viewer 
+            src="letter_A.glb" 
+            alt="Model 3D Huruf A" 
+            auto-rotate 
+            camera-controls 
+            ar 
+            ar-modes="webxr scene-viewer quick-look">
+        </model-viewer>
+
+        <button class="btn" id="speakBtn">🎤 Tahan & Ucapkan "A"</button>
+        <p id="voiceFeedback" style="margin-top: 15px; font-weight: bold; color: #28a745;"></p>
+    </div>
+
+    <script>
+        // --- LOGIKA TRACING CANVAS ---
+        const canvas = document.getElementById('tracingCanvas');
+        const ctx = canvas.getContext('2d');
+        const cardContainer = document.getElementById('card-container');
+        const arContainer = document.getElementById('ar-container');
+
+        let isDrawing = false;
+
+        // Titik-titik target (Checkpoints) untuk membentuk huruf 'A'
+        let checkpoints = [
+            { x: 150, y: 50, hit: false },  // Puncak
+            { x: 70, y: 250, hit: false },  // Bawah Kiri
+            { x: 230, y: 250, hit: false }, // Bawah Kanan
+            { x: 110, y: 150, hit: false }, // Tengah Kiri
+            { x: 190, y: 150, hit: false }  // Tengah Kanan
+        ];
+
+        // Gambar titik-titik awal
+        function drawDots() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#ccc';
+            checkpoints.forEach(pt => {
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 8, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        drawDots();
+
+        // Handle interaksi mouse/touch
+        function startDrawing(e) {
+            isDrawing = true;
+            draw(e);
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+            ctx.beginPath();
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            ctx.lineWidth = 15;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#007BFF';
+
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+
+            // Cek apakah mengenai checkpoint
+            checkpoints.forEach(pt => {
+                const dist = Math.hypot(pt.x - x, pt.y - y);
+                if (dist < 20 && !pt.hit) {
+                    pt.hit = true;
+                    checkCompletion();
+                }
+            });
+        }
+
+        function checkCompletion() {
+            const allHit = checkpoints.every(pt => pt.hit === true);
+            if (allHit) {
+                // Berhasil tracing!
+                setTimeout(() => {
+                    // Putar efek suara (opsional, jika browser mengizinkan)
+                    const msg = new SpeechSynthesisUtterance("A");
+                    msg.lang = 'id-ID';
+                    window.speechSynthesis.speak(msg);
+
+                    // Transisi ke AR
+                    cardContainer.style.display = 'none';
+                    arContainer.style.display = 'flex';
+                }, 500);
+            }
+        }
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mousemove', draw);
+        
+        canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('touchend', stopDrawing);
+        canvas.addEventListener('touchmove', draw);
+
+
+        // --- LOGIKA VOICE RECOGNITION (STEP 3) ---
+        const speakBtn = document.getElementById('speakBtn');
+        const voiceFeedback = document.getElementById('voiceFeedback');
+
+        // Memeriksa dukungan Speech Recognition di browser
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'id-ID';
+            recognition.interimResults = false;
+
+            speakBtn.addEventListener('mousedown', () => {
+                recognition.start();
+                speakBtn.classList.add('recording');
+                speakBtn.innerText = "Mendengarkan...";
+                voiceFeedback.innerText = "";
+            });
+
+            speakBtn.addEventListener('mouseup', () => {
+                recognition.stop();
+                speakBtn.classList.remove('recording');
+                speakBtn.innerText = "🎤 Tahan & Ucapkan \"A\"";
+            });
+
+            // Dukungan Touch untuk mobile
+            speakBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                recognition.start();
+                speakBtn.classList.add('recording');
+                speakBtn.innerText = "Mendengarkan...";
+            });
+
+            speakBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                recognition.stop();
+                speakBtn.classList.remove('recording');
+                speakBtn.innerText = "🎤 Tahan & Ucapkan \"A\"";
+            });
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript.toLowerCase();
+                if (transcript.includes("a") || transcript.includes("ah")) {
+                    voiceFeedback.innerText = "Benar sekali! Itu huruf A.";
+                    // Simulasi respon balik
+                    const reply = new SpeechSynthesisUtterance("Benar, A!");
+                    reply.lang = 'id-ID';
+                    window.speechSynthesis.speak(reply);
+                } else {
+                    voiceFeedback.innerText = `Kamu bilang: "${transcript}". Coba lagi bilang "A".`;
+                    voiceFeedback.style.color = "#FF3B30";
+                }
+            };
+        } else {
+            speakBtn.style.display = 'none';
+            voiceFeedback.innerText = "Browser kamu tidak mendukung fitur suara (Gunakan Chrome).";
+        }
+    </script>
+</body>
+</html>
