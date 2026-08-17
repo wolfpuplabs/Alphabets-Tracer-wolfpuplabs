@@ -2,36 +2,42 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Tracing Dots to AR</title>
     
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
     
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f4f9;
+            font-family: 'Fredoka', sans-serif;
+            background-color: #FEE440; /* Kuning ceria */
+            background-image: radial-gradient(circle, #FFF07C 20%, transparent 20%), radial-gradient(circle, #FFF07C 20%, transparent 20%);
+            background-size: 40px 40px;
+            background-position: 0 0, 20px 20px;
             margin: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
-            /* Mencegah scroll di level body */
             overflow: hidden;
-            touch-action: none; 
+            color: #2B2D42;
         }
 
+        /* Desain Kartu Bergaya Kartun */
         #card-container, #ar-container {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-            padding: 20px;
+            background: #FFFFFF;
+            border: 5px solid #2B2D42;
+            border-radius: 30px;
+            box-shadow: 0 12px 0 #2B2D42; /* Bayangan tebal ala kartun */
+            padding: 30px 20px;
             text-align: center;
             display: flex;
             flex-direction: column;
             align-items: center;
             max-width: 95%;
+            box-sizing: border-box;
         }
 
         #ar-container {
@@ -41,65 +47,96 @@
         }
 
         canvas {
-            border: 2px solid #ccc;
-            border-radius: 10px;
-            /* Mencegah default touch action browser di area kanvas */
+            border: 4px dashed #00BBF9;
+            border-radius: 20px;
             touch-action: none; 
             cursor: crosshair;
-            background-color: #f0f0f0; 
+            background-color: #F8F9FA; 
             background-image: url('letter_a_trace.png'); 
             background-size: 100% 100%; 
             background-position: center;
             background-repeat: no-repeat;
+            margin-top: 10px;
         }
 
         model-viewer {
             width: 100%;
-            height: 350px;
-            background-color: #eee;
-            border-radius: 15px;
-            margin-bottom: 15px;
+            height: 300px;
+            background-color: #E5E5EA;
+            border: 4px solid #2B2D42;
+            border-radius: 20px;
+            margin-bottom: 20px;
         }
 
-        h2 { color: #333; margin-bottom: 5px; }
-        p { color: #666; margin-bottom: 20px; font-size: 14px; }
+        h2 { 
+            margin: 0 0 10px 0; 
+            font-size: 28px; 
+            font-weight: 700;
+            color: #F15BB5; /* Pink cerah */
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        p { 
+            margin: 0 0 15px 0; 
+            font-size: 16px; 
+            font-weight: 500;
+            color: #6C757D; 
+        }
 
         .btn-group {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             width: 100%;
+            margin-bottom: 12px;
         }
 
+        /* Desain Tombol Ceria */
         .btn {
-            background-color: #007BFF;
+            font-family: 'Fredoka', sans-serif;
             color: white;
-            border: none;
-            padding: 15px;
-            border-radius: 50px;
-            font-size: 16px;
-            font-weight: bold;
+            border: 4px solid #2B2D42;
+            padding: 14px;
+            border-radius: 20px;
+            font-size: 18px;
+            font-weight: 700;
             cursor: pointer;
-            box-shadow: 0 5px 15px rgba(0,123,255,0.3);
-            transition: transform 0.2s, background-color 0.2s;
+            box-shadow: 0 6px 0 #2B2D42;
+            transition: all 0.1s;
             flex: 1;
+            text-transform: uppercase;
         }
 
-        .btn:active { transform: scale(0.95); }
-        .btn.recording { background-color: #FF3B30; box-shadow: 0 5px 15px rgba(255,59,48,0.3); }
-        .btn-sound { background-color: #28a745; box-shadow: 0 5px 15px rgba(40,167,69,0.3); }
+        .btn:active { 
+            transform: translateY(6px); 
+            box-shadow: 0 0 0 #2B2D42; 
+        }
+
+        /* Variasi Warna Tombol */
+        .btn-sound { background-color: #00BBF9; } /* Biru */
+        .btn-speak { background-color: #00F5D4; color: #2B2D42; } /* Hijau Mint */
+        .btn-retry { background-color: #F15BB5; width: 100%; } /* Pink */
+        .btn-speak.recording { background-color: #FF3366; color: white; }
+
+        #voiceFeedback {
+            margin-top: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            min-height: 20px;
+        }
 
     </style>
 </head>
 <body>
 
     <div id="card-container">
-        <h2>Langkah 1: Hubungkan Titik</h2>
-        <p>Tarik garis (drag) mengikuti garis putus-putus.</p>
+        <h2>Langkah 1</h2>
+        <p>Tarik garis mengikuti titik-titik putus</p>
         <canvas id="tracingCanvas" width="350" height="400"></canvas>
     </div>
 
     <div id="ar-container">
-        <h2>Langkah 2: AR & Suara</h2>
+        <h2>Kerja Bagus!</h2>
         
         <model-viewer 
             src="letter_A.glb" 
@@ -111,10 +148,12 @@
         </model-viewer>
 
         <div class="btn-group">
-            <button class="btn btn-sound" id="playSoundBtn">🔊 Dengar</button>
-            <button class="btn" id="speakBtn">🎤 Ucapkan "A"</button>
+            <button class="btn btn-sound" id="playSoundBtn">Dengar</button>
+            <button class="btn btn-speak" id="speakBtn">Ucapkan A</button>
         </div>
-        <p id="voiceFeedback" style="margin-top: 15px; font-weight: bold; color: #28a745;"></p>
+        <button class="btn btn-retry" id="retryBtn">Ulangi Menggambar</button>
+        
+        <div id="voiceFeedback"></div>
     </div>
 
     <script>
@@ -127,13 +166,14 @@
                 audioUnlocked = true;
             }
         }
-        document.body.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
+        document.body.addEventListener('touchstart', unlockAudio, { once: true });
         document.body.addEventListener('click', unlockAudio, { once: true });
 
         const canvas = document.getElementById('tracingCanvas');
         const ctx = canvas.getContext('2d');
         const cardContainer = document.getElementById('card-container');
         const arContainer = document.getElementById('ar-container');
+        const voiceFeedback = document.getElementById('voiceFeedback');
 
         let isDrawing = false;
 
@@ -151,9 +191,14 @@
             
             checkpoints.forEach(pt => {
                 ctx.beginPath();
-                ctx.arc(pt.x, pt.y, 12, 0, Math.PI * 2);
-                ctx.fillStyle = pt.hit ? 'rgba(40,167,69,0.8)' : 'rgba(150,150,150,0.5)'; 
+                ctx.arc(pt.x, pt.y, 14, 0, Math.PI * 2);
+                // Warna kuning tebal untuk titik yang belum kena, oranye jika sudah kena
+                ctx.fillStyle = pt.hit ? '#FF9F1C' : '#FFD166'; 
                 ctx.fill();
+                // Tambahkan border pada titik biar lebih kartun
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#2B2D42';
+                ctx.stroke();
             });
         }
 
@@ -186,12 +231,14 @@
 
         function draw(e) {
             if (!isDrawing) return;
+            e.preventDefault();
             
             const pos = getCoordinates(e);
 
-            ctx.lineWidth = 18; 
+            ctx.lineWidth = 22; // Coretan dibuat lebih tebal ala spidol anak-anak
             ctx.lineCap = 'round';
-            ctx.strokeStyle = 'rgba(0, 123, 255, 0.6)'; 
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = 'rgba(155, 93, 229, 0.8)'; // Warna spidol ungu ceria
             ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
             
@@ -202,7 +249,7 @@
             let hitOccurred = false;
             checkpoints.forEach(pt => {
                 const dist = Math.hypot(pt.x - x, pt.y - y);
-                if (dist < 30 && !pt.hit) { 
+                if (dist < 30 && !pt.hit) {
                     pt.hit = true;
                     hitOccurred = true;
                 }
@@ -234,32 +281,32 @@
             }
         }
 
-        // EVENT LISTENER MOUSE (Untuk di Komputer)
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('touchend', stopDrawing);
+        canvas.addEventListener('touchmove', draw);
 
-        // EVENT LISTENER TOUCH (Untuk di iPad/HP) - Diberi passive: false dan preventDefault
-        canvas.addEventListener('touchstart', function(e) {
-            e.preventDefault(); // Paksa browser untuk tidak scroll
-            startDrawing(e);
-        }, { passive: false });
 
-        canvas.addEventListener('touchend', function(e) {
-            e.preventDefault();
-            stopDrawing();
-        }, { passive: false });
-
-        canvas.addEventListener('touchmove', function(e) {
-            e.preventDefault(); // Paksa browser untuk tidak scroll
-            draw(e);
-        }, { passive: false });
+        // --- LOGIKA TOMBOL KEMBALI (RETRY) ---
+        const retryBtn = document.getElementById('retryBtn');
+        retryBtn.addEventListener('click', () => {
+            // Reset status semua titik
+            checkpoints.forEach(pt => pt.hit = false);
+            // Bersihkan kanvas dan gambar ulang titik awal
+            drawCheckpoints();
+            // Kembalikan teks feedback jadi kosong
+            voiceFeedback.innerText = "";
+            // Ganti tampilan ke langkah 1
+            arContainer.style.display = 'none';
+            cardContainer.style.display = 'flex';
+        });
 
 
         // --- LOGIKA SUARA ---
         const speakBtn = document.getElementById('speakBtn');
         const playSoundBtn = document.getElementById('playSoundBtn');
-        const voiceFeedback = document.getElementById('voiceFeedback');
 
         playSoundBtn.addEventListener('click', playLetterSound);
 
@@ -282,14 +329,13 @@
                 e.preventDefault();
                 recognition.stop();
                 speakBtn.classList.remove('recording');
-                speakBtn.innerText = "🎤 Ucapkan \"A\"";
+                speakBtn.innerText = "Ucapkan A";
             };
 
-            // Tambahan passive false juga untuk tombol mic
             speakBtn.addEventListener('mousedown', startRec);
             speakBtn.addEventListener('mouseup', stopRec);
-            speakBtn.addEventListener('touchstart', startRec, { passive: false });
-            speakBtn.addEventListener('touchend', stopRec, { passive: false });
+            speakBtn.addEventListener('touchstart', startRec);
+            speakBtn.addEventListener('touchend', stopRec);
 
             recognition.onresult = (event) => {
                 const transcript = event.results[0][0].transcript.toLowerCase().trim();
@@ -298,25 +344,25 @@
                 const isCorrect = validWords.some(word => transcript.includes(word));
 
                 if (isCorrect) {
-                    voiceFeedback.innerText = "Pintar! Itu huruf A.";
-                    voiceFeedback.style.color = "#28a745";
+                    voiceFeedback.innerText = "Hebat! Itu huruf A";
+                    voiceFeedback.style.color = "#00BBF9"; // Biru ceria
                     
-                    const reply = new SpeechSynthesisUtterance("Pintar!");
+                    const reply = new SpeechSynthesisUtterance("Hebat!");
                     reply.lang = 'id-ID';
                     window.speechSynthesis.speak(reply);
                 } else {
-                    voiceFeedback.innerText = `Kamu bilang: "${transcript}". Coba lagi bilang "A".`;
-                    voiceFeedback.style.color = "#FF3B30";
+                    voiceFeedback.innerText = `Kamu bilang: "${transcript}". Coba lagi ya`;
+                    voiceFeedback.style.color = "#F15BB5"; // Pink terang
                 }
             };
             
             recognition.onerror = (event) => {
-                voiceFeedback.innerText = "Suara tidak terdengar jelas, coba lagi.";
-                voiceFeedback.style.color = "#FF3B30";
+                voiceFeedback.innerText = "Suaranya kurang jelas, coba lagi ya";
+                voiceFeedback.style.color = "#F15BB5";
             };
         } else {
             speakBtn.style.display = 'none';
-            voiceFeedback.innerText = "Browser kamu tidak mendukung rekam suara.";
+            voiceFeedback.innerText = "Browser tidak mendukung rekam suara";
         }
     </script>
 </body>
