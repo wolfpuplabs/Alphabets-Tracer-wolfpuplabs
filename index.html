@@ -25,6 +25,25 @@
             color: #2B2D42;
         }
 
+        /* Tombol Bahasa */
+        .lang-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #FFFFFF;
+            border: 4px solid #2B2D42;
+            border-radius: 15px;
+            padding: 8px 15px;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #2B2D42;
+            transition: transform 0.1s;
+            z-index: 100;
+        }
+        .lang-toggle:active { transform: translateY(4px); box-shadow: 0 0 0 #2B2D42; }
+
         .card-container {
             background: #FFFFFF;
             border: 5px solid #2B2D42;
@@ -38,6 +57,7 @@
             max-width: 95%;
             width: 400px; 
             box-sizing: border-box;
+            position: relative;
         }
 
         #step2-voice, #step3-ar {
@@ -129,20 +149,21 @@
             font-weight: 600;
             min-height: 20px;
         }
-
     </style>
 </head>
 <body>
 
+    <button id="langBtn" class="lang-toggle">ID 🇮🇩</button>
+
     <div id="step1-tracing" class="card-container">
-        <h2>Langkah 1</h2>
-        <p>Hubungkan semua titik pada huruf A</p>
+        <h2 id="txt-step1">Langkah 1</h2>
+        <p id="txt-desc1">Hubungkan semua titik pada huruf A</p>
         <canvas id="tracingCanvas" width="350" height="400"></canvas>
     </div>
 
     <div id="step2-voice" class="card-container">
-        <h2>Langkah 2</h2>
-        <p>Dengarkan lalu ucapkan hurufnya!</p>
+        <h2 id="txt-step2">Langkah 2</h2>
+        <p id="txt-desc2">Dengarkan lalu ucapkan hurufnya!</p>
         <div class="big-letter">Aa</div>
         <div class="btn-group">
             <button class="btn btn-sound" id="playSoundBtn">Dengar</button>
@@ -152,8 +173,8 @@
     </div>
 
     <div id="step3-ar" class="card-container">
-        <h2>Luar Biasa!</h2>
-        <p>Lihat huruf A secara AR di sekitarmu!</p>
+        <h2 id="txt-step3">Luar Biasa!</h2>
+        <p id="txt-desc3">Lihat huruf A secara AR di sekitarmu!</p>
         
         <model-viewer 
             src="letter_A.glb" 
@@ -168,6 +189,58 @@
     </div>
 
     <script>
+        // --- DICTIONARY & LANGUAGE TOGGLE ---
+        const i18n = {
+            id: {
+                step1: "Langkah 1", desc1: "Hubungkan semua titik pada huruf A",
+                step2: "Langkah 2", desc2: "Dengarkan lalu ucapkan hurufnya!",
+                listen: "Dengar", speak: "Ucapkan",
+                step3: "Luar Biasa!", desc3: "Lihat huruf A secara AR di sekitarmu!",
+                retry: "Ulangi dari Awal",
+                listening: "Mendengar...", success: "Hebat! Itu huruf A",
+                failText: "Kamu bilang: ", failTryAgain: " Coba lagi ya",
+                error: "Suaranya kurang jelas, coba lagi ya",
+                ttsLetter: "ah.", langCode: "id-ID",
+                validWords: ['a', 'ah', 'ha', 'aa', 'eh', 'kak']
+            },
+            en: {
+                step1: "Step 1", desc1: "Connect all the dots on the letter A",
+                step2: "Step 2", desc2: "Listen and then say the letter!",
+                listen: "Listen", speak: "Say It",
+                step3: "Awesome!", desc3: "View the letter A in AR around you!",
+                retry: "Start Over",
+                listening: "Listening...", success: "Great! That's the letter A",
+                failText: "You said: ", failTryAgain: " Try again",
+                error: "Sound not clear, please try again",
+                ttsLetter: "A", langCode: "en-US",
+                validWords: ['a', 'ay', 'hey', 'eight', 'a.', 'letter a', 'eh']
+            }
+        };
+
+        let currentLang = 'id';
+        const langBtn = document.getElementById('langBtn');
+
+        function applyLanguage() {
+            const t = i18n[currentLang];
+            document.getElementById('txt-step1').innerText = t.step1;
+            document.getElementById('txt-desc1').innerText = t.desc1;
+            document.getElementById('txt-step2').innerText = t.step2;
+            document.getElementById('txt-desc2').innerText = t.desc2;
+            document.getElementById('playSoundBtn').innerText = t.listen;
+            document.getElementById('speakBtn').innerText = t.speak;
+            document.getElementById('txt-step3').innerText = t.step3;
+            document.getElementById('txt-desc3').innerText = t.desc3;
+            document.getElementById('retryBtn').innerText = t.retry;
+            document.getElementById('voiceFeedback').innerText = "";
+            langBtn.innerText = currentLang === 'id' ? 'ID 🇮🇩' : 'EN 🇬🇧';
+        }
+
+        langBtn.addEventListener('click', () => {
+            currentLang = currentLang === 'id' ? 'en' : 'id';
+            applyLanguage();
+        });
+
+
         // --- SISTEM AUDIO & SFX ---
         let audioUnlocked = false;
         let audioCtx;
@@ -218,11 +291,13 @@
         }
 
         function playLetterSound() {
-            const msg = new SpeechSynthesisUtterance("ah.");
-            msg.lang = 'id-ID';
+            const t = i18n[currentLang];
+            const msg = new SpeechSynthesisUtterance(t.ttsLetter);
+            msg.lang = t.langCode;
             msg.rate = 0.9;
             window.speechSynthesis.speak(msg);
         }
+
 
         // --- MANAJEMEN TAMPILAN (STEPS) ---
         const step1 = document.getElementById('step1-tracing');
@@ -233,17 +308,19 @@
             step1.style.display = 'none';
             step2.style.display = 'none';
             step3.style.display = 'none';
-            
             if(stepNum === 1) step1.style.display = 'flex';
             if(stepNum === 2) step2.style.display = 'flex';
             if(stepNum === 3) step3.style.display = 'flex';
         }
 
 
-        // --- LOGIKA TRACING (STEP 1) ---
+        // --- LOGIKA TRACING (FIX RUBBER BAND) ---
         const canvas = document.getElementById('tracingCanvas');
         const ctx = canvas.getContext('2d');
+        
         let isDrawing = false;
+        let strokes = []; // Menyimpan semua garis yang sudah digambar
+        let currentStroke = []; // Menyimpan garis yang sedang digambar
 
         let checkpoints = [
             { x: 175, y: 50, hit: false },   
@@ -256,11 +333,16 @@
 
         function resetCanvas() {
             checkpoints.forEach(pt => pt.hit = false);
-            drawCheckpoints();
+            strokes = [];
+            currentStroke = [];
+            redrawAll();
         }
 
-        function drawCheckpoints() {
+        // Fungsi menggambar ulang seluruh kanvas (mencegah rubber band)
+        function redrawAll() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Gambar titik
             checkpoints.forEach(pt => {
                 ctx.beginPath();
                 ctx.arc(pt.x, pt.y, 14, 0, Math.PI * 2);
@@ -270,8 +352,36 @@
                 ctx.strokeStyle = '#2B2D42';
                 ctx.stroke();
             });
+
+            // Set style garis
+            ctx.lineWidth = 22; 
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = 'rgba(155, 93, 229, 0.8)';
+
+            // Gambar semua garis sebelumnya
+            strokes.forEach(stroke => {
+                if (stroke.length === 0) return;
+                ctx.beginPath();
+                ctx.moveTo(stroke[0].x, stroke[0].y);
+                for (let i = 1; i < stroke.length; i++) {
+                    ctx.lineTo(stroke[i].x, stroke[i].y);
+                }
+                ctx.stroke();
+            });
+
+            // Gambar garis yang sedang ditarik saat ini
+            if (isDrawing && currentStroke.length > 0) {
+                ctx.beginPath();
+                ctx.moveTo(currentStroke[0].x, currentStroke[0].y);
+                for (let i = 1; i < currentStroke.length; i++) {
+                    ctx.lineTo(currentStroke[i].x, currentStroke[i].y);
+                }
+                ctx.stroke();
+            }
         }
-        drawCheckpoints();
+
+        redrawAll();
 
         function getCoordinates(e) {
             const rect = canvas.getBoundingClientRect();
@@ -283,30 +393,29 @@
         }
 
         function startDrawing(e) {
+            e.preventDefault(); // Mencegah klik ganda di iPad
             isDrawing = true;
             const pos = getCoordinates(e);
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
+            currentStroke = [pos];
+            redrawAll();
         }
 
-        function stopDrawing() {
-            // Anak bebas angkat jari, tracing tidak akan digagalkan/direset
-            isDrawing = false;
+        function stopDrawing(e) {
+            if (e) e.preventDefault();
+            if (isDrawing) {
+                strokes.push(currentStroke); // Simpan garis ke memori
+                isDrawing = false;
+                currentStroke = [];
+            }
         }
 
         function draw(e) {
             if (!isDrawing) return;
             e.preventDefault();
             const pos = getCoordinates(e);
-            
-            ctx.lineWidth = 22; 
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.strokeStyle = 'rgba(155, 93, 229, 0.8)'; 
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
-            
+            currentStroke.push(pos);
             checkHit(pos.x, pos.y);
+            redrawAll(); // Selalu gambar ulang semuanya dari memori
         }
 
         function checkHit(x, y) {
@@ -320,16 +429,11 @@
             });
 
             if (hitOccurred) {
-                drawCheckpoints(); 
-                
                 const allHit = checkpoints.every(pt => pt.hit === true);
                 if (allHit) {
-                    isDrawing = false; 
+                    stopDrawing(); 
                     playSuccessSFX();
-                    
-                    setTimeout(() => {
-                        goToStep(2);
-                    }, 1000); 
+                    setTimeout(() => { goToStep(2); }, 1000); 
                 }
             }
         }
@@ -337,9 +441,10 @@
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('touchstart', startDrawing);
-        canvas.addEventListener('touchend', stopDrawing);
-        canvas.addEventListener('touchmove', draw);
+        // Passive false agar e.preventDefault() bekerja di iOS
+        canvas.addEventListener('touchstart', startDrawing, {passive: false});
+        canvas.addEventListener('touchend', stopDrawing, {passive: false});
+        canvas.addEventListener('touchmove', draw, {passive: false});
 
 
         // --- LOGIKA SUARA (STEP 2) ---
@@ -353,15 +458,16 @@
         
         if (SpeechRecognition) {
             const recognition = new SpeechRecognition();
-            recognition.lang = 'id-ID';
             recognition.interimResults = false;
 
             const startRec = (e) => {
                 e.preventDefault();
                 unlockMedia();
+                const t = i18n[currentLang];
+                recognition.lang = t.langCode;
                 recognition.start();
                 speakBtn.classList.add('recording');
-                speakBtn.innerText = "Mendengar...";
+                speakBtn.innerText = t.listening;
                 voiceFeedback.innerText = "";
             };
 
@@ -369,43 +475,36 @@
                 e.preventDefault();
                 recognition.stop();
                 speakBtn.classList.remove('recording');
-                speakBtn.innerText = "Ucapkan";
+                speakBtn.innerText = i18n[currentLang].speak;
             };
 
             speakBtn.addEventListener('mousedown', startRec);
             speakBtn.addEventListener('mouseup', stopRec);
-            speakBtn.addEventListener('touchstart', startRec);
-            speakBtn.addEventListener('touchend', stopRec);
+            speakBtn.addEventListener('touchstart', startRec, {passive: false});
+            speakBtn.addEventListener('touchend', stopRec, {passive: false});
 
             recognition.onresult = (event) => {
+                const t = i18n[currentLang];
                 const transcript = event.results[0][0].transcript.toLowerCase().trim();
                 
-                const validWords = ['a', 'ah', 'ha', 'aa', 'eh'];
-                const isCorrect = validWords.some(word => transcript.includes(word));
+                // Cek kata di daftar valid sesuai bahasa yang aktif
+                const isCorrect = t.validWords.some(word => transcript.includes(word));
 
                 if (isCorrect) {
-                    voiceFeedback.innerText = "Hebat! Itu huruf A";
+                    voiceFeedback.innerText = t.success;
                     voiceFeedback.style.color = "#00BBF9"; 
-                    
-                    const reply = new SpeechSynthesisUtterance("Hebat!");
-                    reply.lang = 'id-ID';
-                    window.speechSynthesis.speak(reply);
-                    
                     playSuccessSFX();
-
-                    setTimeout(() => {
-                        goToStep(3);
-                    }, 1500);
-
+                    setTimeout(() => { goToStep(3); }, 1500);
                 } else {
-                    voiceFeedback.innerText = `Kamu bilang: "${transcript}". Coba lagi ya`;
+                    voiceFeedback.innerText = t.failText + `"${transcript}".` + t.failTryAgain;
                     voiceFeedback.style.color = "#F15BB5";
                     playFailSFX();
                 }
             };
             
             recognition.onerror = (event) => {
-                voiceFeedback.innerText = "Suaranya kurang jelas, coba lagi ya";
+                const t = i18n[currentLang];
+                voiceFeedback.innerText = t.error;
                 voiceFeedback.style.color = "#F15BB5";
                 playFailSFX();
             };
