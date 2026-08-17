@@ -141,11 +141,10 @@
         .btn-speak { background-color: #00F5D4; color: #2B2D42; } 
         .btn-retry { background-color: #F15BB5; width: 100%; } 
         
-        /* Gaya saat sedang merekam */
         .btn-speak.recording { 
             background-color: #FF3366; 
             color: white; 
-            pointer-events: none; /* Cegah diklik dua kali */
+            pointer-events: none; 
             box-shadow: 0 0 0 #2B2D42;
             transform: translateY(6px);
         }
@@ -222,7 +221,7 @@
                 listening: "Listening...", success: "Great! That's the letter A",
                 failText: "You said: ", failTryAgain: " Try again",
                 error: "Sound not clear, please try again",
-                ttsLetter: "ay.", // Ejaan fonetik agar Apple tidak bilang "Capital"
+                ttsLetter: "ay.", 
                 langCode: "en-US",
                 validWords: ['a', 'ay', 'hey', 'eight', 'eh']
             }
@@ -252,34 +251,38 @@
         });
 
 
-        // --- SISTEM AUDIO & SFX ---
-        let audioUnlocked = false;
+        // --- SISTEM AUDIO & SFX UNLOCKER (FIX SAFARI) ---
         let audioCtx;
+        let synthUnlocked = false;
 
-        function initAudio() {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-        }
-
-        function unlockMedia() {
-            if (!audioUnlocked) {
+        // Fungsi ini harus dipanggil tepat saat layar disentuh/diklik
+        function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            
+            if (!synthUnlocked) {
                 const unlockMsg = new SpeechSynthesisUtterance('');
                 window.speechSynthesis.speak(unlockMsg);
-                initAudio();
-                audioUnlocked = true;
+                synthUnlocked = true;
             }
         }
-        document.body.addEventListener('touchstart', unlockMedia, { once: true });
-        document.body.addEventListener('click', unlockMedia, { once: true });
+
+        // Membuka blokir audio secara paksa saat sentuhan pertama di layar mana saja
+        window.addEventListener('touchstart', initAudioContext, { passive: true });
+        window.addEventListener('mousedown', initAudioContext, { passive: true });
 
         function playSuccessSFX() {
-            initAudio();
+            if (!audioCtx) return;
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(440, audioCtx.currentTime); 
-            osc.frequency.setValueAtTime(554, audioCtx.currentTime + 0.1); 
-            osc.frequency.setValueAtTime(659, audioCtx.currentTime + 0.2); 
+            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // Nada C
+            osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); // Nada E
+            osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); // Nada G
             osc.connect(gainNode);
             gainNode.connect(audioCtx.destination);
             osc.start();
@@ -288,7 +291,7 @@
         }
 
         function playFailSFX() {
-            initAudio();
+            if (!audioCtx) return;
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             osc.type = 'triangle';
@@ -325,7 +328,7 @@
         }
 
 
-        // --- LOGIKA TRACING ---
+        // --- LOGIKA TRACING (TITIK PRESISI LURUS) ---
         const canvas = document.getElementById('tracingCanvas');
         const ctx = canvas.getContext('2d');
         
@@ -333,13 +336,13 @@
         let strokes = []; 
         let currentStroke = []; 
 
+        // 5 Titik Sesuai dengan image_6.png
         let checkpoints = [
-            { x: 175, y: 50, hit: false },   
-            { x: 110, y: 220, hit: false },  
-            { x: 60, y: 350, hit: false },   
-            { x: 240, y: 220, hit: false },  
-            { x: 290, y: 350, hit: false },  
-            { x: 175, y: 240, hit: false }   
+            { x: 175, y: 65, hit: false },   // Puncak
+            { x: 115, y: 235, hit: false },  // Tengah Kiri
+            { x: 235, y: 235, hit: false },  // Tengah Kanan (Y sama persis dengan Kiri)
+            { x: 65, y: 345, hit: false },   // Bawah Kiri
+            { x: 285, y: 345, hit: false }   // Bawah Kanan
         ];
 
         function resetCanvas() {
@@ -465,26 +468,21 @@
             const recognition = new SpeechRecognition();
             recognition.interimResults = false;
 
-            // Reset tampilan tombol
             const resetBtnState = () => {
                 speakBtn.classList.remove('recording');
                 speakBtn.innerText = i18n[currentLang].speak;
             };
 
-            // SEKARANG HANYA KLIK SEKALI (TIDAK PERLU DITAHAN)
             speakBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 if (speakBtn.classList.contains('recording')) return;
 
-                unlockMedia();
                 const t = i18n[currentLang];
                 recognition.lang = t.langCode;
                 
                 try {
                     recognition.start();
-                } catch (err) {
-                    // Abaikan jika sudah berjalan
-                }
+                } catch (err) {}
                 
                 speakBtn.classList.add('recording');
                 speakBtn.innerText = t.listening;
@@ -510,7 +508,6 @@
                 }
             };
             
-            // Otomatis reset tombol saat berhenti mendengar (baik karena error atau selesai bicara)
             recognition.onspeechend = () => {
                 recognition.stop();
                 resetBtnState();
