@@ -11,7 +11,7 @@
     <style>
         body {
             font-family: 'Fredoka', sans-serif;
-            background-color: #FEE440; /* Kuning ceria */
+            background-color: #FEE440; 
             background-image: radial-gradient(circle, #FFF07C 20%, transparent 20%), radial-gradient(circle, #FFF07C 20%, transparent 20%);
             background-size: 40px 40px;
             background-position: 0 0, 20px 20px;
@@ -25,25 +25,24 @@
             color: #2B2D42;
         }
 
-        /* Desain Kartu Bergaya Kartun */
-        #card-container, #ar-container {
+        .card-container {
             background: #FFFFFF;
             border: 5px solid #2B2D42;
             border-radius: 30px;
-            box-shadow: 0 12px 0 #2B2D42; /* Bayangan tebal ala kartun */
+            box-shadow: 0 12px 0 #2B2D42; 
             padding: 30px 20px;
             text-align: center;
             display: flex;
             flex-direction: column;
             align-items: center;
             max-width: 95%;
+            width: 400px; /* Lebar seragam untuk semua step */
             box-sizing: border-box;
         }
 
-        #ar-container {
+        /* Sembunyikan step 2 dan 3 di awal */
+        #step2-voice, #step3-ar {
             display: none;
-            width: 400px;
-            max-width: 100%;
         }
 
         canvas {
@@ -57,11 +56,12 @@
             background-position: center;
             background-repeat: no-repeat;
             margin-top: 10px;
+            max-width: 100%;
         }
 
         model-viewer {
             width: 100%;
-            height: 300px;
+            height: 250px;
             background-color: #E5E5EA;
             border: 4px solid #2B2D42;
             border-radius: 20px;
@@ -72,7 +72,7 @@
             margin: 0 0 10px 0; 
             font-size: 28px; 
             font-weight: 700;
-            color: #F15BB5; /* Pink cerah */
+            color: #F15BB5; 
             text-transform: uppercase;
             letter-spacing: 1px;
         }
@@ -84,6 +84,14 @@
             color: #6C757D; 
         }
 
+        .big-letter {
+            font-size: 80px; 
+            font-weight: 700; 
+            color: #F15BB5; 
+            margin: 10px 0 20px 0;
+            line-height: 1;
+        }
+
         .btn-group {
             display: flex;
             gap: 12px;
@@ -91,7 +99,6 @@
             margin-bottom: 12px;
         }
 
-        /* Desain Tombol Ceria */
         .btn {
             font-family: 'Fredoka', sans-serif;
             color: white;
@@ -112,10 +119,9 @@
             box-shadow: 0 0 0 #2B2D42; 
         }
 
-        /* Variasi Warna Tombol */
-        .btn-sound { background-color: #00BBF9; } /* Biru */
-        .btn-speak { background-color: #00F5D4; color: #2B2D42; } /* Hijau Mint */
-        .btn-retry { background-color: #F15BB5; width: 100%; } /* Pink */
+        .btn-sound { background-color: #00BBF9; } 
+        .btn-speak { background-color: #00F5D4; color: #2B2D42; } 
+        .btn-retry { background-color: #F15BB5; width: 100%; } 
         .btn-speak.recording { background-color: #FF3366; color: white; }
 
         #voiceFeedback {
@@ -129,14 +135,26 @@
 </head>
 <body>
 
-    <div id="card-container">
+    <div id="step1-tracing" class="card-container">
         <h2>Langkah 1</h2>
-        <p>Tarik garis mengikuti titik-titik putus</p>
+        <p>Tarik garis tanpa putus mengikuti titik!</p>
         <canvas id="tracingCanvas" width="350" height="400"></canvas>
     </div>
 
-    <div id="ar-container">
-        <h2>Kerja Bagus!</h2>
+    <div id="step2-voice" class="card-container">
+        <h2>Langkah 2</h2>
+        <p>Dengarkan lalu ucapkan hurufnya!</p>
+        <div class="big-letter">Aa</div>
+        <div class="btn-group">
+            <button class="btn btn-sound" id="playSoundBtn">Dengar</button>
+            <button class="btn btn-speak" id="speakBtn">Ucapkan</button>
+        </div>
+        <div id="voiceFeedback"></div>
+    </div>
+
+    <div id="step3-ar" class="card-container">
+        <h2>Luar Biasa!</h2>
+        <p>Lihat huruf A secara AR di sekitarmu!</p>
         
         <model-viewer 
             src="letter_A.glb" 
@@ -147,35 +165,89 @@
             ar-modes="webxr scene-viewer quick-look">
         </model-viewer>
 
-        <div class="btn-group">
-            <button class="btn btn-sound" id="playSoundBtn">Dengar</button>
-            <button class="btn btn-speak" id="speakBtn">Ucapkan A</button>
-        </div>
-        <button class="btn btn-retry" id="retryBtn">Ulangi Menggambar</button>
-        
-        <div id="voiceFeedback"></div>
+        <button class="btn btn-retry" id="retryBtn">Ulangi dari Awal</button>
     </div>
 
     <script>
-        // Unlock Audio untuk Safari iOS
+        // --- SISTEM AUDIO & SFX ---
         let audioUnlocked = false;
-        function unlockAudio() {
+        let audioCtx;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function unlockMedia() {
             if (!audioUnlocked) {
                 const unlockMsg = new SpeechSynthesisUtterance('');
                 window.speechSynthesis.speak(unlockMsg);
+                initAudio();
                 audioUnlocked = true;
             }
         }
-        document.body.addEventListener('touchstart', unlockAudio, { once: true });
-        document.body.addEventListener('click', unlockAudio, { once: true });
+        document.body.addEventListener('touchstart', unlockMedia, { once: true });
+        document.body.addEventListener('click', unlockMedia, { once: true });
 
+        // SFX Berhasil (Nada Ceria Naik)
+        function playSuccessSFX() {
+            initAudio();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, audioCtx.currentTime); // Nada dasar
+            osc.frequency.setValueAtTime(554, audioCtx.currentTime + 0.1); // Nada naik
+            osc.frequency.setValueAtTime(659, audioCtx.currentTime + 0.2); // Nada tinggi
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            osc.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        // SFX Gagal (Nada Turun / Tetot)
+        function playFailSFX() {
+            initAudio();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime); 
+            osc.frequency.setValueAtTime(200, audioCtx.currentTime + 0.2); 
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            osc.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.4);
+            osc.stop(audioCtx.currentTime + 0.4);
+        }
+
+        function playLetterSound() {
+            const msg = new SpeechSynthesisUtterance("ah.");
+            msg.lang = 'id-ID';
+            msg.rate = 0.9;
+            window.speechSynthesis.speak(msg);
+        }
+
+        // --- MANAJEMEN TAMPILAN (STEPS) ---
+        const step1 = document.getElementById('step1-tracing');
+        const step2 = document.getElementById('step2-voice');
+        const step3 = document.getElementById('step3-ar');
+
+        function goToStep(stepNum) {
+            step1.style.display = 'none';
+            step2.style.display = 'none';
+            step3.style.display = 'none';
+            
+            if(stepNum === 1) step1.style.display = 'flex';
+            if(stepNum === 2) step2.style.display = 'flex';
+            if(stepNum === 3) step3.style.display = 'flex';
+        }
+
+
+        // --- LOGIKA TRACING (STEP 1) ---
         const canvas = document.getElementById('tracingCanvas');
         const ctx = canvas.getContext('2d');
-        const cardContainer = document.getElementById('card-container');
-        const arContainer = document.getElementById('ar-container');
-        const voiceFeedback = document.getElementById('voiceFeedback');
-
         let isDrawing = false;
+        let traceTimeout;
 
         let checkpoints = [
             { x: 175, y: 50, hit: false },   
@@ -186,40 +258,37 @@
             { x: 175, y: 240, hit: false }   
         ];
 
+        function resetCanvas() {
+            checkpoints.forEach(pt => pt.hit = false);
+            drawCheckpoints();
+        }
+
         function drawCheckpoints() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
             checkpoints.forEach(pt => {
                 ctx.beginPath();
                 ctx.arc(pt.x, pt.y, 14, 0, Math.PI * 2);
-                // Warna kuning tebal untuk titik yang belum kena, oranye jika sudah kena
                 ctx.fillStyle = pt.hit ? '#FF9F1C' : '#FFD166'; 
                 ctx.fill();
-                // Tambahkan border pada titik biar lebih kartun
                 ctx.lineWidth = 3;
                 ctx.strokeStyle = '#2B2D42';
                 ctx.stroke();
             });
         }
-
         drawCheckpoints();
 
         function getCoordinates(e) {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
-
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
-            return { 
-                x: (clientX - rect.left) * scaleX, 
-                y: (clientY - rect.top) * scaleY 
-            };
+            return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
         }
 
         function startDrawing(e) {
             isDrawing = true;
+            clearTimeout(traceTimeout); // Batalkan timer gagal jika anak lanjut menggambar
             const pos = getCoordinates(e);
             ctx.beginPath();
             ctx.moveTo(pos.x, pos.y);
@@ -227,18 +296,28 @@
 
         function stopDrawing() {
             isDrawing = false;
+            // Jika anak berhenti menggambar selama 1.5 detik, cek apakah titik sudah selesai semua
+            traceTimeout = setTimeout(() => {
+                const allHit = checkpoints.every(pt => pt.hit === true);
+                const anyHit = checkpoints.some(pt => pt.hit === true);
+                
+                // Jika tidak selesai tapi sempat menggambar -> GAGAL
+                if (!allHit && anyHit) {
+                    playFailSFX();
+                    resetCanvas();
+                }
+            }, 1500); 
         }
 
         function draw(e) {
             if (!isDrawing) return;
             e.preventDefault();
-            
             const pos = getCoordinates(e);
-
-            ctx.lineWidth = 22; // Coretan dibuat lebih tebal ala spidol anak-anak
+            
+            ctx.lineWidth = 22; 
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
-            ctx.strokeStyle = 'rgba(155, 93, 229, 0.8)'; // Warna spidol ungu ceria
+            ctx.strokeStyle = 'rgba(155, 93, 229, 0.8)'; 
             ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
             
@@ -256,28 +335,20 @@
             });
 
             if (hitOccurred) {
-                checkCompletion();
-            }
-        }
-
-        function playLetterSound() {
-            const msg = new SpeechSynthesisUtterance("ah.");
-            msg.lang = 'id-ID';
-            msg.rate = 0.9;
-            window.speechSynthesis.speak(msg);
-        }
-
-        function checkCompletion() {
-            const allHit = checkpoints.every(pt => pt.hit === true);
-            if (allHit) {
-                isDrawing = false; 
-                drawCheckpoints(); 
+                drawCheckpoints(); // Segarkan warna titik
                 
-                setTimeout(() => {
-                    cardContainer.style.display = 'none';
-                    arContainer.style.display = 'flex';
-                    playLetterSound();
-                }, 600); 
+                // Cek Kesuksesan Tracing
+                const allHit = checkpoints.every(pt => pt.hit === true);
+                if (allHit) {
+                    isDrawing = false; 
+                    clearTimeout(traceTimeout);
+                    playSuccessSFX();
+                    
+                    // Jeda sebentar sebelum pindah layar
+                    setTimeout(() => {
+                        goToStep(2);
+                    }, 1000); 
+                }
             }
         }
 
@@ -289,24 +360,10 @@
         canvas.addEventListener('touchmove', draw);
 
 
-        // --- LOGIKA TOMBOL KEMBALI (RETRY) ---
-        const retryBtn = document.getElementById('retryBtn');
-        retryBtn.addEventListener('click', () => {
-            // Reset status semua titik
-            checkpoints.forEach(pt => pt.hit = false);
-            // Bersihkan kanvas dan gambar ulang titik awal
-            drawCheckpoints();
-            // Kembalikan teks feedback jadi kosong
-            voiceFeedback.innerText = "";
-            // Ganti tampilan ke langkah 1
-            arContainer.style.display = 'none';
-            cardContainer.style.display = 'flex';
-        });
-
-
-        // --- LOGIKA SUARA ---
+        // --- LOGIKA SUARA (STEP 2) ---
         const speakBtn = document.getElementById('speakBtn');
         const playSoundBtn = document.getElementById('playSoundBtn');
+        const voiceFeedback = document.getElementById('voiceFeedback');
 
         playSoundBtn.addEventListener('click', playLetterSound);
 
@@ -319,9 +376,10 @@
 
             const startRec = (e) => {
                 e.preventDefault();
+                unlockMedia();
                 recognition.start();
                 speakBtn.classList.add('recording');
-                speakBtn.innerText = "Mendengarkan...";
+                speakBtn.innerText = "Mendengar...";
                 voiceFeedback.innerText = "";
             };
 
@@ -329,7 +387,7 @@
                 e.preventDefault();
                 recognition.stop();
                 speakBtn.classList.remove('recording');
-                speakBtn.innerText = "Ucapkan A";
+                speakBtn.innerText = "Ucapkan";
             };
 
             speakBtn.addEventListener('mousedown', startRec);
@@ -345,25 +403,45 @@
 
                 if (isCorrect) {
                     voiceFeedback.innerText = "Hebat! Itu huruf A";
-                    voiceFeedback.style.color = "#00BBF9"; // Biru ceria
+                    voiceFeedback.style.color = "#00BBF9"; 
                     
                     const reply = new SpeechSynthesisUtterance("Hebat!");
                     reply.lang = 'id-ID';
                     window.speechSynthesis.speak(reply);
+                    
+                    playSuccessSFX();
+
+                    // Sukses bicara -> Pindah ke AR
+                    setTimeout(() => {
+                        goToStep(3);
+                    }, 1500);
+
                 } else {
                     voiceFeedback.innerText = `Kamu bilang: "${transcript}". Coba lagi ya`;
-                    voiceFeedback.style.color = "#F15BB5"; // Pink terang
+                    voiceFeedback.style.color = "#F15BB5";
+                    playFailSFX();
                 }
             };
             
             recognition.onerror = (event) => {
                 voiceFeedback.innerText = "Suaranya kurang jelas, coba lagi ya";
                 voiceFeedback.style.color = "#F15BB5";
+                playFailSFX();
             };
         } else {
             speakBtn.style.display = 'none';
             voiceFeedback.innerText = "Browser tidak mendukung rekam suara";
         }
+
+
+        // --- LOGIKA ULANGI (STEP 3) ---
+        const retryBtn = document.getElementById('retryBtn');
+        retryBtn.addEventListener('click', () => {
+            resetCanvas();
+            voiceFeedback.innerText = "";
+            goToStep(1);
+        });
+
     </script>
 </body>
 </html>
