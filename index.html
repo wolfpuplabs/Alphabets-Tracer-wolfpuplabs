@@ -37,16 +37,17 @@
             width: 400px;
         }
 
-        /* --- PERUBAHAN DI SINI --- */
-        /* Mengatur gambar sebagai background Canvas */
+        /* Set canvas background. Pastikan nama file persis: image_3.png */
         canvas {
             border: 2px solid #ccc;
             border-radius: 10px;
             touch-action: none; 
             cursor: crosshair;
-            background-image: url('image_3.png'); /* Memanggil gambar */
-            background-size: cover; /* Menyesuaikan gambar agar pas di canvas */
+            background-color: #fff;
+            background-image: url('image_3.png'); 
+            background-size: cover;
             background-position: center;
+            background-repeat: no-repeat;
         }
 
         model-viewer {
@@ -88,15 +89,12 @@
 </head>
 <body>
 
-    <!-- STEP 1: TRACING THE DOTS -->
     <div id="card-container">
         <h2>Langkah 1: Hubungkan Titik</h2>
-        <p>Ikuti garis putus-putus pada huruf "A" besar.</p>
-        <!-- Ukuran Canvas diubah menjadi lanskap agar sesuai rasio gambar -->
+        <p>Tarik garis (drag) melewati titik-titik pada huruf "A".</p>
         <canvas id="tracingCanvas" width="600" height="350"></canvas>
     </div>
 
-    <!-- STEP 2: 3D AR & VOICE INTERACTION -->
     <div id="ar-container">
         <h2>Langkah 2: AR & Suara</h2>
         
@@ -117,7 +115,7 @@
     </div>
 
     <script>
-        // Unlock Audio untuk Safari
+        // Unlock Audio untuk Safari iOS
         let audioUnlocked = false;
         function unlockAudio() {
             if (!audioUnlocked) {
@@ -136,34 +134,31 @@
 
         let isDrawing = false;
 
-        // --- PERUBAHAN DI SINI ---
-        // Titik koordinat disesuaikan dengan posisi huruf A besar di sebelah kiri gambar
-        // Jika tracing kurang pas, angka x (kiri-kanan) dan y (atas-bawah) ini bisa kamu ubah-ubah
+        // Koordinat disesuaikan untuk membentuk pola A yang pas di kanvas
         let checkpoints = [
-            { x: 170, y: 80, hit: false },  // Puncak A
-            { x: 90, y: 220, hit: false },  // Kaki Kiri Bawah
-            { x: 230, y: 220, hit: false }, // Kaki Kanan Bawah
-            { x: 130, y: 170, hit: false }, // Garis Tengah Kiri
-            { x: 200, y: 170, hit: false }  // Garis Tengah Kanan
+            { x: 160, y: 70, hit: false },  // Puncak A
+            { x: 120, y: 160, hit: false }, // Tengah Kiri
+            { x: 80, y: 250, hit: false },  // Bawah Kiri
+            { x: 200, y: 160, hit: false }, // Tengah Kanan
+            { x: 240, y: 250, hit: false }  // Bawah Kanan
         ];
 
-        // Karena sekarang pakai gambar latar, kita hanya perlu menggambar titik bantu secara opsional
-        // (Bisa dihapus jika tidak ingin titik abu-abunya terlihat)
         function drawCheckpoints() {
+            // Bersihkan kanvas (tanpa menghapus background image)
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
             checkpoints.forEach(pt => {
                 ctx.beginPath();
-                ctx.arc(pt.x, pt.y, 10, 0, Math.PI * 2);
-                ctx.fillStyle = pt.hit ? 'rgba(40,167,69,0.5)' : 'rgba(200,200,200,0.3)'; 
+                ctx.arc(pt.x, pt.y, 12, 0, Math.PI * 2);
+                ctx.fillStyle = pt.hit ? 'rgba(40,167,69,0.8)' : 'rgba(150,150,150,0.5)'; 
                 ctx.fill();
             });
         }
 
-        // Gambar titik awal transparan
         drawCheckpoints();
 
         function getCoordinates(e) {
             const rect = canvas.getBoundingClientRect();
-            // Menghitung rasio jika canvas di-scale oleh CSS (misal di HP)
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
 
@@ -181,7 +176,7 @@
             const pos = getCoordinates(e);
             ctx.beginPath();
             ctx.moveTo(pos.x, pos.y);
-            checkHit(pos.x, pos.y);
+            // HAPUS checkHit di sini agar TAP saja tidak membuat titik jadi hijau
         }
 
         function stopDrawing() {
@@ -194,13 +189,13 @@
             
             const pos = getCoordinates(e);
 
-            ctx.lineWidth = 12;
+            ctx.lineWidth = 15;
             ctx.lineCap = 'round';
-            // Pakai warna tinta biru agar mirip bolpoin
-            ctx.strokeStyle = 'rgba(0, 123, 255, 0.8)';
+            ctx.strokeStyle = 'rgba(0, 123, 255, 0.6)'; // Garis biru transparan
             ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
             
+            // Titik HANYA dicek saat jari BERGERAK (drag)
             checkHit(pos.x, pos.y);
         }
 
@@ -208,20 +203,20 @@
             let hitOccurred = false;
             checkpoints.forEach(pt => {
                 const dist = Math.hypot(pt.x - x, pt.y - y);
-                if (dist < 30 && !pt.hit) {
+                if (dist < 25 && !pt.hit) {
                     pt.hit = true;
                     hitOccurred = true;
                 }
             });
 
             if (hitOccurred) {
-                drawCheckpoints(); // Update warna titik jika terkena
                 checkCompletion();
             }
         }
 
         function playLetterSound() {
-            const msg = new SpeechSynthesisUtterance("A");
+            // Menggunakan "ah." agar Apple tidak membaca "A besar"
+            const msg = new SpeechSynthesisUtterance("ah.");
             msg.lang = 'id-ID';
             msg.rate = 0.9;
             window.speechSynthesis.speak(msg);
@@ -230,12 +225,14 @@
         function checkCompletion() {
             const allHit = checkpoints.every(pt => pt.hit === true);
             if (allHit) {
-                // Selesai Tracing, munculkan AR
+                isDrawing = false; // Hentikan gambar
+                drawCheckpoints(); // Warnai titik terakhir jadi hijau
+                
                 setTimeout(() => {
                     cardContainer.style.display = 'none';
                     arContainer.style.display = 'flex';
                     playLetterSound();
-                }, 500); // Jeda setengah detik agar user melihat hasil coretannya selesai
+                }, 600); 
             }
         }
 
@@ -247,7 +244,7 @@
         canvas.addEventListener('touchmove', draw);
 
 
-        // --- LOGIKA TOMBOL & SUARA (STEP 2) ---
+        // --- LOGIKA SUARA ---
         const speakBtn = document.getElementById('speakBtn');
         const playSoundBtn = document.getElementById('playSoundBtn');
         const voiceFeedback = document.getElementById('voiceFeedback');
@@ -282,12 +279,17 @@
             speakBtn.addEventListener('touchend', stopRec);
 
             recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript.toLowerCase();
-                if (transcript.includes("a") || transcript.includes("ah")) {
+                const transcript = event.results[0][0].transcript.toLowerCase().trim();
+                
+                // Memperluas deteksi suara karena iPad sering misheard kata pendek
+                const validWords = ['a', 'ah', 'ha', 'aa', 'eh'];
+                const isCorrect = validWords.some(word => transcript.includes(word));
+
+                if (isCorrect) {
                     voiceFeedback.innerText = "Pintar! Itu huruf A.";
                     voiceFeedback.style.color = "#28a745";
                     
-                    const reply = new SpeechSynthesisUtterance("Pintar");
+                    const reply = new SpeechSynthesisUtterance("Pintar!");
                     reply.lang = 'id-ID';
                     window.speechSynthesis.speak(reply);
                 } else {
@@ -297,7 +299,7 @@
             };
             
             recognition.onerror = (event) => {
-                voiceFeedback.innerText = "Suara tidak terdengar, coba lagi.";
+                voiceFeedback.innerText = "Suara tidak terdengar jelas, coba lagi.";
                 voiceFeedback.style.color = "#FF3B30";
             };
         } else {
