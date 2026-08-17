@@ -25,7 +25,6 @@
             color: #2B2D42;
         }
 
-        /* Tombol Bahasa */
         .lang-toggle {
             position: absolute;
             top: 20px;
@@ -141,7 +140,15 @@
         .btn-sound { background-color: #00BBF9; } 
         .btn-speak { background-color: #00F5D4; color: #2B2D42; } 
         .btn-retry { background-color: #F15BB5; width: 100%; } 
-        .btn-speak.recording { background-color: #FF3366; color: white; }
+        
+        /* Gaya saat sedang merekam */
+        .btn-speak.recording { 
+            background-color: #FF3366; 
+            color: white; 
+            pointer-events: none; /* Cegah diklik dua kali */
+            box-shadow: 0 0 0 #2B2D42;
+            transform: translateY(6px);
+        }
 
         #voiceFeedback {
             margin-top: 10px;
@@ -155,12 +162,14 @@
 
     <button id="langBtn" class="lang-toggle">ID 🇮🇩</button>
 
+    <!-- STEP 1: TRACING -->
     <div id="step1-tracing" class="card-container">
         <h2 id="txt-step1">Langkah 1</h2>
         <p id="txt-desc1">Hubungkan semua titik pada huruf A</p>
         <canvas id="tracingCanvas" width="350" height="400"></canvas>
     </div>
 
+    <!-- STEP 2: VOICE -->
     <div id="step2-voice" class="card-container">
         <h2 id="txt-step2">Langkah 2</h2>
         <p id="txt-desc2">Dengarkan lalu ucapkan hurufnya!</p>
@@ -172,6 +181,7 @@
         <div id="voiceFeedback"></div>
     </div>
 
+    <!-- STEP 3: AR -->
     <div id="step3-ar" class="card-container">
         <h2 id="txt-step3">Luar Biasa!</h2>
         <p id="txt-desc3">Lihat huruf A secara AR di sekitarmu!</p>
@@ -212,8 +222,9 @@
                 listening: "Listening...", success: "Great! That's the letter A",
                 failText: "You said: ", failTryAgain: " Try again",
                 error: "Sound not clear, please try again",
-                ttsLetter: "A", langCode: "en-US",
-                validWords: ['a', 'ay', 'hey', 'eight', 'a.', 'letter a', 'eh']
+                ttsLetter: "ay.", // Ejaan fonetik agar Apple tidak bilang "Capital"
+                langCode: "en-US",
+                validWords: ['a', 'ay', 'hey', 'eight', 'eh']
             }
         };
 
@@ -314,13 +325,13 @@
         }
 
 
-        // --- LOGIKA TRACING (FIX RUBBER BAND) ---
+        // --- LOGIKA TRACING ---
         const canvas = document.getElementById('tracingCanvas');
         const ctx = canvas.getContext('2d');
         
         let isDrawing = false;
-        let strokes = []; // Menyimpan semua garis yang sudah digambar
-        let currentStroke = []; // Menyimpan garis yang sedang digambar
+        let strokes = []; 
+        let currentStroke = []; 
 
         let checkpoints = [
             { x: 175, y: 50, hit: false },   
@@ -338,11 +349,9 @@
             redrawAll();
         }
 
-        // Fungsi menggambar ulang seluruh kanvas (mencegah rubber band)
         function redrawAll() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Gambar titik
             checkpoints.forEach(pt => {
                 ctx.beginPath();
                 ctx.arc(pt.x, pt.y, 14, 0, Math.PI * 2);
@@ -353,13 +362,11 @@
                 ctx.stroke();
             });
 
-            // Set style garis
             ctx.lineWidth = 22; 
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.strokeStyle = 'rgba(155, 93, 229, 0.8)';
 
-            // Gambar semua garis sebelumnya
             strokes.forEach(stroke => {
                 if (stroke.length === 0) return;
                 ctx.beginPath();
@@ -370,7 +377,6 @@
                 ctx.stroke();
             });
 
-            // Gambar garis yang sedang ditarik saat ini
             if (isDrawing && currentStroke.length > 0) {
                 ctx.beginPath();
                 ctx.moveTo(currentStroke[0].x, currentStroke[0].y);
@@ -393,7 +399,7 @@
         }
 
         function startDrawing(e) {
-            e.preventDefault(); // Mencegah klik ganda di iPad
+            e.preventDefault(); 
             isDrawing = true;
             const pos = getCoordinates(e);
             currentStroke = [pos];
@@ -403,7 +409,7 @@
         function stopDrawing(e) {
             if (e) e.preventDefault();
             if (isDrawing) {
-                strokes.push(currentStroke); // Simpan garis ke memori
+                strokes.push(currentStroke);
                 isDrawing = false;
                 currentStroke = [];
             }
@@ -415,7 +421,7 @@
             const pos = getCoordinates(e);
             currentStroke.push(pos);
             checkHit(pos.x, pos.y);
-            redrawAll(); // Selalu gambar ulang semuanya dari memori
+            redrawAll(); 
         }
 
         function checkHit(x, y) {
@@ -441,13 +447,12 @@
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('mousemove', draw);
-        // Passive false agar e.preventDefault() bekerja di iOS
         canvas.addEventListener('touchstart', startDrawing, {passive: false});
         canvas.addEventListener('touchend', stopDrawing, {passive: false});
         canvas.addEventListener('touchmove', draw, {passive: false});
 
 
-        // --- LOGIKA SUARA (STEP 2) ---
+        // --- LOGIKA SUARA (STEP 2) - TAP TO TALK ---
         const speakBtn = document.getElementById('speakBtn');
         const playSoundBtn = document.getElementById('playSoundBtn');
         const voiceFeedback = document.getElementById('voiceFeedback');
@@ -460,34 +465,37 @@
             const recognition = new SpeechRecognition();
             recognition.interimResults = false;
 
-            const startRec = (e) => {
-                e.preventDefault();
-                unlockMedia();
-                const t = i18n[currentLang];
-                recognition.lang = t.langCode;
-                recognition.start();
-                speakBtn.classList.add('recording');
-                speakBtn.innerText = t.listening;
-                voiceFeedback.innerText = "";
-            };
-
-            const stopRec = (e) => {
-                e.preventDefault();
-                recognition.stop();
+            // Reset tampilan tombol
+            const resetBtnState = () => {
                 speakBtn.classList.remove('recording');
                 speakBtn.innerText = i18n[currentLang].speak;
             };
 
-            speakBtn.addEventListener('mousedown', startRec);
-            speakBtn.addEventListener('mouseup', stopRec);
-            speakBtn.addEventListener('touchstart', startRec, {passive: false});
-            speakBtn.addEventListener('touchend', stopRec, {passive: false});
+            // SEKARANG HANYA KLIK SEKALI (TIDAK PERLU DITAHAN)
+            speakBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (speakBtn.classList.contains('recording')) return;
+
+                unlockMedia();
+                const t = i18n[currentLang];
+                recognition.lang = t.langCode;
+                
+                try {
+                    recognition.start();
+                } catch (err) {
+                    // Abaikan jika sudah berjalan
+                }
+                
+                speakBtn.classList.add('recording');
+                speakBtn.innerText = t.listening;
+                voiceFeedback.innerText = "";
+            });
 
             recognition.onresult = (event) => {
+                resetBtnState();
                 const t = i18n[currentLang];
                 const transcript = event.results[0][0].transcript.toLowerCase().trim();
                 
-                // Cek kata di daftar valid sesuai bahasa yang aktif
                 const isCorrect = t.validWords.some(word => transcript.includes(word));
 
                 if (isCorrect) {
@@ -502,12 +510,24 @@
                 }
             };
             
+            // Otomatis reset tombol saat berhenti mendengar (baik karena error atau selesai bicara)
+            recognition.onspeechend = () => {
+                recognition.stop();
+                resetBtnState();
+            };
+
             recognition.onerror = (event) => {
+                resetBtnState();
                 const t = i18n[currentLang];
                 voiceFeedback.innerText = t.error;
                 voiceFeedback.style.color = "#F15BB5";
                 playFailSFX();
             };
+            
+            recognition.onnomatch = () => {
+                resetBtnState();
+            }
+
         } else {
             speakBtn.style.display = 'none';
             voiceFeedback.innerText = "Browser tidak mendukung rekam suara";
