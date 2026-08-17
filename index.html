@@ -66,7 +66,6 @@
             display: none;
         }
 
-        /* PERBAIKAN: CSS ini sekarang HANYA berlaku untuk canvas tracing, bukan canvas confetti */
         #tracingCanvas {
             border: 4px dashed #00BBF9;
             border-radius: 20px;
@@ -163,8 +162,8 @@
 </head>
 <body>
 
-    <!-- PERBAIKAN AUDIO: Menggunakan format MP3 yang disukai iOS Safari -->
-    <audio id="audioCheer" src="https://www.myinstants.com/media/sounds/kids-cheering.mp3" preload="auto"></audio>
+    <!-- Audio Files: Menggunakan URL MP3 yang sangat kompatibel dengan Safari iOS -->
+    <audio id="audioCheer" src="https://www.myinstants.com/media/sounds/yay_zP2XQOU.mp3" preload="auto"></audio>
     <audio id="audioFail" src="https://www.myinstants.com/media/sounds/erro.mp3" preload="auto"></audio>
 
     <button id="langBtn" class="lang-toggle">ID 🇮🇩</button>
@@ -217,7 +216,9 @@
                 listening: "Mendengar...", success: "Hebat! Itu huruf A",
                 failText: "Kamu bilang: ", failTryAgain: " Coba lagi ya",
                 error: "Suaranya kurang jelas, coba lagi ya",
-                ttsLetter: "ah.", langCode: "id-ID",
+                micError: "Ketuk 'Ucapkan' sekali lagi ya!",
+                ttsLetter: "a", // Huruf a biasa
+                langCode: "id-ID",
                 validWords: ['a', 'ah', 'ha', 'aa', 'eh', 'kak']
             },
             en: {
@@ -229,9 +230,11 @@
                 listening: "Listening...", success: "Great! That's the letter A",
                 failText: "You said: ", failTryAgain: " Try again",
                 error: "Sound not clear, please try again",
-                ttsLetter: "ay.", 
+                micError: "Tap 'Say It' one more time!",
+                ttsLetter: "a", // Menggunakan huruf a kecil untuk menghindari "Capital"
                 langCode: "en-US",
-                validWords: ['a', 'ay', 'hey', 'eight', 'eh']
+                // Diperluas agar pendeteksian bahasa Inggris lebih mudah untuk anak-anak
+                validWords: ['a', 'ei', 'ay', 'hey', 'eight', 'eh', 'day', 'say', 'yeah', 'okay']
             }
         };
 
@@ -264,14 +267,15 @@
         const audioFail = document.getElementById('audioFail');
         let mediaUnlocked = false;
 
-        // Buka blokir audio di sentuhan pertama
+        // Buka blokir audio Safari di sentuhan pertama
         function unlockMedia() {
             if (!mediaUnlocked) {
                 const unlockMsg = new SpeechSynthesisUtterance('');
                 window.speechSynthesis.speak(unlockMsg);
                 
-                audioCheer.load();
-                audioFail.load();
+                // Mainkan dan pause seketika untuk mendapatkan izin dari iOS
+                audioCheer.play().then(() => audioCheer.pause()).catch(e => {});
+                audioFail.play().then(() => audioFail.pause()).catch(e => {});
                 mediaUnlocked = true;
             }
         }
@@ -289,7 +293,7 @@
                 spread: 80,
                 origin: { y: 0.6 },
                 colors: ['#00BBF9', '#00F5D4', '#F15BB5', '#FEE440'],
-                zIndex: 9999 // Pastikan confetti selalu di depan
+                zIndex: 9999
             });
         }
 
@@ -302,7 +306,7 @@
             const t = i18n[currentLang];
             const msg = new SpeechSynthesisUtterance(t.ttsLetter);
             msg.lang = t.langCode;
-            msg.rate = 0.9;
+            msg.rate = 0.8; // Diperlambat sedikit agar jelas
             window.speechSynthesis.speak(msg);
         }
 
@@ -322,7 +326,7 @@
         }
 
 
-        // --- LOGIKA TRACING (DENGAN TITIK TENGAH LURUS) ---
+        // --- LOGIKA TRACING ---
         const canvas = document.getElementById('tracingCanvas');
         const ctx = canvas.getContext('2d');
         
@@ -332,12 +336,12 @@
         let currentStroke = []; 
 
         let checkpoints = [
-            { x: 175, y: 65, hit: false },   // Puncak
-            { x: 115, y: 235, hit: false },  // Tengah Kiri
-            { x: 175, y: 235, hit: false },  // Tengah Lurus
-            { x: 235, y: 235, hit: false },  // Tengah Kanan
-            { x: 65, y: 345, hit: false },   // Bawah Kiri
-            { x: 285, y: 345, hit: false }   // Bawah Kanan
+            { x: 175, y: 65, hit: false },   
+            { x: 115, y: 235, hit: false },  
+            { x: 175, y: 235, hit: false },  
+            { x: 235, y: 235, hit: false },  
+            { x: 65, y: 345, hit: false },   
+            { x: 285, y: 345, hit: false }   
         ];
 
         function resetCanvas() {
@@ -437,12 +441,10 @@
             if (hitOccurred) {
                 const allHit = checkpoints.every(pt => pt.hit === true);
                 if (allHit) {
-                    isTracingComplete = true; // Kunci kanvas agar tidak bisa dicoret lagi
+                    isTracingComplete = true; 
                     stopDrawing(); 
                     
                     playSuccessSFX(); 
-                    
-                    // Pindah ke step 2 setelah 2.5 detik agar anak bisa melihat confetti
                     setTimeout(() => { goToStep(2); }, 2500); 
                 }
             }
@@ -456,7 +458,7 @@
         canvas.addEventListener('touchmove', draw, {passive: false});
 
 
-        // --- LOGIKA SUARA (STEP 2) - TAP TO TALK ---
+        // --- LOGIKA SUARA (STEP 2) ---
         const speakBtn = document.getElementById('speakBtn');
         const playSoundBtn = document.getElementById('playSoundBtn');
         const voiceFeedback = document.getElementById('voiceFeedback');
@@ -478,6 +480,7 @@
                 e.preventDefault();
                 if (speakBtn.classList.contains('recording')) return;
 
+                unlockMedia(); // Pastikan media siap sebelum mic menyala
                 const t = i18n[currentLang];
                 recognition.lang = t.langCode;
                 
@@ -500,8 +503,8 @@
                 if (isCorrect) {
                     voiceFeedback.innerText = t.success;
                     voiceFeedback.style.color = "#00BBF9"; 
-                    playSuccessSFX(); // Suara sorakan & Confetti lagi saat berhasil bicara!
-                    setTimeout(() => { goToStep(3); }, 2000);
+                    playSuccessSFX(); 
+                    setTimeout(() => { goToStep(3); }, 2500);
                 } else {
                     voiceFeedback.innerText = t.failText + `"${transcript}".` + t.failTryAgain;
                     voiceFeedback.style.color = "#F15BB5";
@@ -517,14 +520,18 @@
             recognition.onerror = (event) => {
                 resetBtnState();
                 const t = i18n[currentLang];
+                
+                // Bypass bug iOS: Jika baru pertama minta izin (not-allowed / aborted)
+                if (event.error === 'not-allowed' || event.error === 'aborted') {
+                    voiceFeedback.innerText = t.micError;
+                    voiceFeedback.style.color = "#FF9F1C"; // Warna oranye peringatan
+                    return; // Hentikan fungsi agar tidak putar suara gagal
+                }
+
                 voiceFeedback.innerText = t.error;
                 voiceFeedback.style.color = "#F15BB5";
                 playFailSFX();
             };
-            
-            recognition.onnomatch = () => {
-                resetBtnState();
-            }
 
         } else {
             speakBtn.style.display = 'none';
