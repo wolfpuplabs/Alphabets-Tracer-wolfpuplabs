@@ -221,9 +221,9 @@
                 listening: "Listening...", success: "Great! That's the letter A",
                 failText: "You said: ", failTryAgain: " Try again",
                 error: "Sound not clear, please try again",
-                ttsLetter: "ay.", 
+                ttsLetter: "ey.", // Ejaan "ey" agar Apple membacanya sebagai "Ey" bukan "Ai"
                 langCode: "en-US",
-                validWords: ['a', 'ay', 'hey', 'eight', 'eh']
+                validWords: ['a', 'ay', 'hey', 'eight', 'eh', 'ey']
             }
         };
 
@@ -251,11 +251,10 @@
         });
 
 
-        // --- SISTEM AUDIO & SFX UNLOCKER (FIX SAFARI) ---
+        // --- SISTEM AUDIO & SFX UNLOCKER ---
         let audioCtx;
         let synthUnlocked = false;
 
-        // Fungsi ini harus dipanggil tepat saat layar disentuh/diklik
         function initAudioContext() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -271,7 +270,6 @@
             }
         }
 
-        // Membuka blokir audio secara paksa saat sentuhan pertama di layar mana saja
         window.addEventListener('touchstart', initAudioContext, { passive: true });
         window.addEventListener('mousedown', initAudioContext, { passive: true });
 
@@ -280,9 +278,9 @@
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // Nada C
-            osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); // Nada E
-            osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); // Nada G
+            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); 
+            osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); 
+            osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); 
             osc.connect(gainNode);
             gainNode.connect(audioCtx.destination);
             osc.start();
@@ -336,13 +334,12 @@
         let strokes = []; 
         let currentStroke = []; 
 
-        // 5 Titik Sesuai dengan image_6.png
         let checkpoints = [
-            { x: 175, y: 65, hit: false },   // Puncak
-            { x: 115, y: 235, hit: false },  // Tengah Kiri
-            { x: 235, y: 235, hit: false },  // Tengah Kanan (Y sama persis dengan Kiri)
-            { x: 65, y: 345, hit: false },   // Bawah Kiri
-            { x: 285, y: 345, hit: false }   // Bawah Kanan
+            { x: 175, y: 65, hit: false },   
+            { x: 115, y: 235, hit: false },  
+            { x: 235, y: 235, hit: false },  
+            { x: 65, y: 345, hit: false },   
+            { x: 285, y: 345, hit: false }   
         ];
 
         function resetCanvas() {
@@ -455,7 +452,7 @@
         canvas.addEventListener('touchmove', draw, {passive: false});
 
 
-        // --- LOGIKA SUARA (STEP 2) - TAP TO TALK ---
+        // --- LOGIKA SUARA (STEP 2) ---
         const speakBtn = document.getElementById('speakBtn');
         const playSoundBtn = document.getElementById('playSoundBtn');
         const voiceFeedback = document.getElementById('voiceFeedback');
