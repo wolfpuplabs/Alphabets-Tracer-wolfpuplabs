@@ -6,7 +6,10 @@
     <title>Tracing Dots to AR</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Import Library 3D dan Confetti (Pinata Effect) -->
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
     <style>
         body {
@@ -221,9 +224,9 @@
                 listening: "Listening...", success: "Great! That's the letter A",
                 failText: "You said: ", failTryAgain: " Try again",
                 error: "Sound not clear, please try again",
-                ttsLetter: "ey.", // Ejaan "ey" agar Apple membacanya sebagai "Ey" bukan "Ai"
+                ttsLetter: "ay.", 
                 langCode: "en-US",
-                validWords: ['a', 'ay', 'hey', 'eight', 'eh', 'ey']
+                validWords: ['a', 'ay', 'hey', 'eight', 'eh']
             }
         };
 
@@ -251,55 +254,50 @@
         });
 
 
-        // --- SISTEM AUDIO & SFX UNLOCKER ---
-        let audioCtx;
-        let synthUnlocked = false;
+        // --- SISTEM AUDIO (SORAKAN ANAK & EFEK GAGAL) ---
+        // Menggunakan library suara publik resmi dari Google Actions
+        const successAudio = new Audio('https://actions.google.com/sounds/v1/crowds/kids_cheering.ogg');
+        const failAudio = new Audio('https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg');
+        
+        let mediaUnlocked = false;
 
-        function initAudioContext() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-            
-            if (!synthUnlocked) {
+        function unlockMedia() {
+            if (!mediaUnlocked) {
+                // Unlock Voice Synthesis
                 const unlockMsg = new SpeechSynthesisUtterance('');
                 window.speechSynthesis.speak(unlockMsg);
-                synthUnlocked = true;
+                
+                // Unlock Audio Elements untuk iOS Safari (Play lalu Pause secara senyap)
+                successAudio.volume = 0;
+                failAudio.volume = 0;
+                successAudio.play().then(() => successAudio.pause()).catch(e => console.log(e));
+                failAudio.play().then(() => failAudio.pause()).catch(e => console.log(e));
+                
+                mediaUnlocked = true;
             }
         }
 
-        window.addEventListener('touchstart', initAudioContext, { passive: true });
-        window.addEventListener('mousedown', initAudioContext, { passive: true });
+        window.addEventListener('touchstart', unlockMedia, { passive: true, once: true });
+        window.addEventListener('mousedown', unlockMedia, { passive: true, once: true });
 
         function playSuccessSFX() {
-            if (!audioCtx) return;
-            const osc = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); 
-            osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); 
-            osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); 
-            osc.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            osc.start();
-            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
-            osc.stop(audioCtx.currentTime + 0.5);
+            successAudio.volume = 1;
+            successAudio.currentTime = 0;
+            successAudio.play();
+            
+            // Efek Pinata Confetti
+            confetti({
+                particleCount: 150,
+                spread: 80,
+                origin: { y: 0.6 },
+                colors: ['#00BBF9', '#00F5D4', '#F15BB5', '#FEE440']
+            });
         }
 
         function playFailSFX() {
-            if (!audioCtx) return;
-            const osc = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(300, audioCtx.currentTime); 
-            osc.frequency.setValueAtTime(200, audioCtx.currentTime + 0.2); 
-            osc.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            osc.start();
-            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.4);
-            osc.stop(audioCtx.currentTime + 0.4);
+            failAudio.volume = 1;
+            failAudio.currentTime = 0;
+            failAudio.play();
         }
 
         function playLetterSound() {
@@ -326,7 +324,7 @@
         }
 
 
-        // --- LOGIKA TRACING (TITIK PRESISI LURUS) ---
+        // --- LOGIKA TRACING (DENGAN TITIK TENGAH LURUS) ---
         const canvas = document.getElementById('tracingCanvas');
         const ctx = canvas.getContext('2d');
         
@@ -334,12 +332,14 @@
         let strokes = []; 
         let currentStroke = []; 
 
+        // Terdapat 6 Titik: Titik Kiri, Tengah, dan Kanan diatur sejajar di koordinat Y: 235
         let checkpoints = [
-            { x: 175, y: 65, hit: false },   
-            { x: 115, y: 235, hit: false },  
-            { x: 235, y: 235, hit: false },  
-            { x: 65, y: 345, hit: false },   
-            { x: 285, y: 345, hit: false }   
+            { x: 175, y: 65, hit: false },   // 1. Puncak
+            { x: 115, y: 235, hit: false },  // 2. Tengah Kiri
+            { x: 175, y: 235, hit: false },  // 3. Tengah Tengah (Agar terpaksa membuat garis horizontal lurus)
+            { x: 235, y: 235, hit: false },  // 4. Tengah Kanan
+            { x: 65, y: 345, hit: false },   // 5. Bawah Kiri
+            { x: 285, y: 345, hit: false }   // 6. Bawah Kanan
         ];
 
         function resetCanvas() {
@@ -438,8 +438,8 @@
                 const allHit = checkpoints.every(pt => pt.hit === true);
                 if (allHit) {
                     stopDrawing(); 
-                    playSuccessSFX();
-                    setTimeout(() => { goToStep(2); }, 1000); 
+                    playSuccessSFX(); // Panggil Suara Sorakan & Pinata Confetti
+                    setTimeout(() => { goToStep(2); }, 2000); // Beri jeda 2 detik untuk menikmati efek
                 }
             }
         }
@@ -452,7 +452,7 @@
         canvas.addEventListener('touchmove', draw, {passive: false});
 
 
-        // --- LOGIKA SUARA (STEP 2) ---
+        // --- LOGIKA SUARA (STEP 2) - TAP TO TALK ---
         const speakBtn = document.getElementById('speakBtn');
         const playSoundBtn = document.getElementById('playSoundBtn');
         const voiceFeedback = document.getElementById('voiceFeedback');
@@ -497,11 +497,11 @@
                     voiceFeedback.innerText = t.success;
                     voiceFeedback.style.color = "#00BBF9"; 
                     playSuccessSFX();
-                    setTimeout(() => { goToStep(3); }, 1500);
+                    setTimeout(() => { goToStep(3); }, 2000);
                 } else {
                     voiceFeedback.innerText = t.failText + `"${transcript}".` + t.failTryAgain;
                     voiceFeedback.style.color = "#F15BB5";
-                    playFailSFX();
+                    playFailSFX(); // Putar Suara Gagal (Tetot)
                 }
             };
             
