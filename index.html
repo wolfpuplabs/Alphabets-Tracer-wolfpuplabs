@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tracing Dots to AR</title>
     
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
@@ -17,7 +17,9 @@
             align-items: center;
             justify-content: center;
             height: 100vh;
+            /* Mencegah scroll di level body */
             overflow: hidden;
+            touch-action: none; 
         }
 
         #card-container, #ar-container {
@@ -38,14 +40,14 @@
             max-width: 100%;
         }
 
-        /* PERBAIKAN UKURAN & BACKGROUND CANVAS */
         canvas {
             border: 2px solid #ccc;
             border-radius: 10px;
+            /* Mencegah default touch action browser di area kanvas */
             touch-action: none; 
             cursor: crosshair;
             background-color: #f0f0f0; 
-            background-image: url('letter_a_trace.png'); /* Nama file gambar yang baru */
+            background-image: url('letter_a_trace.png'); 
             background-size: 100% 100%; 
             background-position: center;
             background-repeat: no-repeat;
@@ -125,7 +127,7 @@
                 audioUnlocked = true;
             }
         }
-        document.body.addEventListener('touchstart', unlockAudio, { once: true });
+        document.body.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
         document.body.addEventListener('click', unlockAudio, { once: true });
 
         const canvas = document.getElementById('tracingCanvas');
@@ -135,14 +137,13 @@
 
         let isDrawing = false;
 
-        // KOORDINAT BARU YANG DISESUAIKAN DENGAN GAMBAR LETTER_A_TRACE.PNG
         let checkpoints = [
-            { x: 175, y: 50, hit: false },   // 1. Puncak Atas
-            { x: 110, y: 220, hit: false },  // 2. Garis Kiri Atas
-            { x: 60, y: 350, hit: false },   // 3. Kaki Kiri Bawah
-            { x: 240, y: 220, hit: false },  // 4. Garis Kanan Atas
-            { x: 290, y: 350, hit: false },  // 5. Kaki Kanan Bawah
-            { x: 175, y: 240, hit: false }   // 6. Palang Tengah (Garis Horizontal)
+            { x: 175, y: 50, hit: false },   
+            { x: 110, y: 220, hit: false },  
+            { x: 60, y: 350, hit: false },   
+            { x: 240, y: 220, hit: false },  
+            { x: 290, y: 350, hit: false },  
+            { x: 175, y: 240, hit: false }   
         ];
 
         function drawCheckpoints() {
@@ -156,7 +157,6 @@
             });
         }
 
-        // Gambar titik-titik awal
         drawCheckpoints();
 
         function getCoordinates(e) {
@@ -186,10 +186,138 @@
 
         function draw(e) {
             if (!isDrawing) return;
-            e.preventDefault();
             
             const pos = getCoordinates(e);
 
-            ctx.lineWidth = 18; // Ketebalan coretan disesuaikan
+            ctx.lineWidth = 18; 
             ctx.lineCap = 'round';
-            ctx.strokeStyle
+            ctx.strokeStyle = 'rgba(0, 123, 255, 0.6)'; 
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            
+            checkHit(pos.x, pos.y);
+        }
+
+        function checkHit(x, y) {
+            let hitOccurred = false;
+            checkpoints.forEach(pt => {
+                const dist = Math.hypot(pt.x - x, pt.y - y);
+                if (dist < 30 && !pt.hit) { 
+                    pt.hit = true;
+                    hitOccurred = true;
+                }
+            });
+
+            if (hitOccurred) {
+                checkCompletion();
+            }
+        }
+
+        function playLetterSound() {
+            const msg = new SpeechSynthesisUtterance("ah.");
+            msg.lang = 'id-ID';
+            msg.rate = 0.9;
+            window.speechSynthesis.speak(msg);
+        }
+
+        function checkCompletion() {
+            const allHit = checkpoints.every(pt => pt.hit === true);
+            if (allHit) {
+                isDrawing = false; 
+                drawCheckpoints(); 
+                
+                setTimeout(() => {
+                    cardContainer.style.display = 'none';
+                    arContainer.style.display = 'flex';
+                    playLetterSound();
+                }, 600); 
+            }
+        }
+
+        // EVENT LISTENER MOUSE (Untuk di Komputer)
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mousemove', draw);
+
+        // EVENT LISTENER TOUCH (Untuk di iPad/HP) - Diberi passive: false dan preventDefault
+        canvas.addEventListener('touchstart', function(e) {
+            e.preventDefault(); // Paksa browser untuk tidak scroll
+            startDrawing(e);
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            stopDrawing();
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', function(e) {
+            e.preventDefault(); // Paksa browser untuk tidak scroll
+            draw(e);
+        }, { passive: false });
+
+
+        // --- LOGIKA SUARA ---
+        const speakBtn = document.getElementById('speakBtn');
+        const playSoundBtn = document.getElementById('playSoundBtn');
+        const voiceFeedback = document.getElementById('voiceFeedback');
+
+        playSoundBtn.addEventListener('click', playLetterSound);
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'id-ID';
+            recognition.interimResults = false;
+
+            const startRec = (e) => {
+                e.preventDefault();
+                recognition.start();
+                speakBtn.classList.add('recording');
+                speakBtn.innerText = "Mendengarkan...";
+                voiceFeedback.innerText = "";
+            };
+
+            const stopRec = (e) => {
+                e.preventDefault();
+                recognition.stop();
+                speakBtn.classList.remove('recording');
+                speakBtn.innerText = "🎤 Ucapkan \"A\"";
+            };
+
+            // Tambahan passive false juga untuk tombol mic
+            speakBtn.addEventListener('mousedown', startRec);
+            speakBtn.addEventListener('mouseup', stopRec);
+            speakBtn.addEventListener('touchstart', startRec, { passive: false });
+            speakBtn.addEventListener('touchend', stopRec, { passive: false });
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript.toLowerCase().trim();
+                
+                const validWords = ['a', 'ah', 'ha', 'aa', 'eh'];
+                const isCorrect = validWords.some(word => transcript.includes(word));
+
+                if (isCorrect) {
+                    voiceFeedback.innerText = "Pintar! Itu huruf A.";
+                    voiceFeedback.style.color = "#28a745";
+                    
+                    const reply = new SpeechSynthesisUtterance("Pintar!");
+                    reply.lang = 'id-ID';
+                    window.speechSynthesis.speak(reply);
+                } else {
+                    voiceFeedback.innerText = `Kamu bilang: "${transcript}". Coba lagi bilang "A".`;
+                    voiceFeedback.style.color = "#FF3B30";
+                }
+            };
+            
+            recognition.onerror = (event) => {
+                voiceFeedback.innerText = "Suara tidak terdengar jelas, coba lagi.";
+                voiceFeedback.style.color = "#FF3B30";
+            };
+        } else {
+            speakBtn.style.display = 'none';
+            voiceFeedback.innerText = "Browser kamu tidak mendukung rekam suara.";
+        }
+    </script>
+</body>
+</html>
